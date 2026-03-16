@@ -4,29 +4,48 @@
     <meta charset="UTF-8">
     <title>School Digital Signage</title>
     <style>
-        /* CSS：デザイン設定 */
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #000; font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif; }
+        /* 全体の基本設定 */
+        body, html { 
+            margin: 0; padding: 0; height: 100%; width: 100%; 
+            overflow: hidden; background: #000; 
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif; 
+        }
+
         #app { position: relative; width: 100vw; height: 100vh; }
 
+        /* スライドの基本設定 */
         .slide {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background-size: cover; background-position: center;
             background-color: #000;
-            opacity: 0; transition: opacity 1.5s ease-in-out;
+            opacity: 0; 
+            /* 0.8秒でシュッと切り替える（重なり時間を短縮） */
+            transition: opacity 0.8s ease-in-out; 
+            /* 通常時は背面に配置 */
+            z-index: 1; 
         }
-        .slide.active { opacity: 1; }
 
+        /* 表示中のスライドを手前に持ってくる */
+        .slide.active { 
+            opacity: 1; 
+            z-index: 2; 
+        }
+
+        /* ニューステキストのボックス */
         .content-box {
             position: absolute; bottom: 8%; left: 5%; width: 60%;
             padding: 40px; color: white;
-            background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
-            text-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+            /* 背景グラデーションを少し濃くして視認性をアップ */
+            background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 70%, transparent 100%);
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.7);
             z-index: 10;
         }
-        .title { font-size: 3.5rem; font-weight: bold; margin-bottom: 20px; line-height: 1.2; }
-        .excerpt { font-size: 1.5rem; line-height: 1.6; opacity: 0.9; }
-        .meta { margin-top: 15px; font-size: 1.2rem; color: #ccc; }
 
+        .title { font-size: 3.2rem; font-weight: bold; margin-bottom: 20px; line-height: 1.2; }
+        .excerpt { font-size: 1.4rem; line-height: 1.6; opacity: 0.95; }
+        .meta { margin-top: 15px; font-size: 1.1rem; color: #ccc; }
+
+        /* 下部のプログレスバー */
         #progress {
             position: absolute; bottom: 0; left: 0; height: 6px;
             background: #fff; width: 0%; z-index: 20;
@@ -38,18 +57,19 @@
     <div id="progress"></div>
 
     <script>
-        /* JavaScript：ここを最新のロジックに差し替えています */
         const API_URL = '/api/news';
-        const INTERVAL = 7000;
+        const INTERVAL = 7000; // 7秒
         let newsItems = [];
         let currentIndex = 0;
 
+        // ニュース更新（10分ごとに実行）
         async function updateNews() {
             try {
                 const res = await fetch(API_URL);
                 const data = await res.json();
                 if (Array.isArray(data) && data.length > 0) {
                     newsItems = data;
+                    // 初回のみ即座に表示
                     if (document.getElementById('app').children.length === 0) {
                         renderSlide();
                     }
@@ -65,6 +85,7 @@
             const app = document.getElementById('app');
             const item = newsItems[currentIndex];
             
+            // 1. 新しいスライドを作成
             const newSlide = document.createElement('div');
             newSlide.className = 'slide';
             newSlide.style.backgroundImage = `url(${item.image})`;
@@ -76,36 +97,44 @@
                 </div>
             `;
             
+            // 2. 画面に追加（この時点では opacity: 0 / z-index: 1）
             app.appendChild(newSlide);
 
+            // 3. フェードイン開始（z-index: 2 になり、一番手前にくる）
             requestAnimationFrame(() => {
                 setTimeout(() => {
                     newSlide.classList.add('active');
                 }, 50);
             });
 
-            // 古いスライドをフェードアウトさせてから削除
+            // 4. 古いスライドを背面に送り、削除する
             if (app.children.length > 1) {
                 const oldSlide = app.children[0];
+                
+                // 古いスライドの active を外す（z-index が 1 に戻り、新しいスライドの下に隠れる）
                 oldSlide.classList.remove('active'); 
+                
+                // フェード時間(0.8s)が終わった後、完全に削除
                 setTimeout(() => {
                     if (oldSlide && oldSlide.parentNode === app) {
                         app.removeChild(oldSlide);
                     }
-                }, 1500); 
+                }, 1000); // 余裕を持って1秒に設定
             }
 
-            // プログレスバーの制御
+            // 5. プログレスバーのリセット
             const bar = document.getElementById('progress');
             bar.style.transition = 'none';
             bar.style.width = '0%';
-            bar.offsetHeight; 
+            bar.offsetHeight; // リフロー強制（再描画）
             bar.style.transition = `width ${INTERVAL}ms linear`;
             bar.style.width = '100%';
 
+            // 6. 次のニュースへ
             currentIndex = (currentIndex + 1) % newsItems.length;
         }
 
+        // 実行開始
         updateNews();
         setInterval(renderSlide, INTERVAL);
         setInterval(updateNews, 10 * 60 * 1000);
