@@ -2,8 +2,13 @@
   "name": "signage-news",
   "version": "1.0.0",
   "type": "module",
-  "engines": { "node": "18.x" },
-  "scripts": { "start": "vercel dev" },
+  "engines": {
+    "node": "24.x"
+  },
+  "enginesStrict": false,
+  "scripts": {
+    "start": "vercel dev"
+  },
   "dependencies": {
     "node-fetch": "^3.3.1",
     "xml2js": "^0.4.23",
