@@ -1,16 +1,8 @@
 {
-  "name": "signage-news",
+  "name": "school-signage",
   "version": "1.0.0",
-  "type": "module",
-  "engines": {
-    "node": "24.x"
-  },
-  "enginesStrict": false,
-  "scripts": {
-    "start": "vercel dev"
-  },
   "dependencies": {
-    "node-fetch": "^3.3.1",
+    "node-fetch": "^2.6.7",
     "xml2js": "^0.4.23",
     "cheerio": "^1.0.0-rc.12"
   }
