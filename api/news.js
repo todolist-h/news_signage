@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 import xml2js from 'xml2js';
 
-const RSS_URL = 'https://www3.nhk.or.jp/rss/news/cat0.xml';
+const RSS_URL = 'https://www3.nhk.or.jp/rss/news/cat7.xml';
 
 export default async function handler(req, res) {
   try {
