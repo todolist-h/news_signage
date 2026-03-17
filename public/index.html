@@ -6,14 +6,34 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #000; color: #fff; font-family: "Helvetica Neue", Arial, sans-serif; cursor: none; }
         #app { position: relative; width: 100vw; height: 100vh; }
-        .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 1.5s ease-in-out; z-index: 1; background: #000; }
+        
+        .slide {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0; transition: opacity 1.5s ease-in-out; z-index: 1;
+            /* 画像が出ない時のための予備背景（おしゃれな青系グラデーション） */
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+        }
+        
         .active { opacity: 1; z-index: 2; }
-        .slide img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; filter: brightness(0.6); }
-        .content-box { position: absolute; bottom: 12%; left: 5%; width: 85%; padding: 40px; background: linear-gradient(transparent, rgba(0,0,0,0.8)); z-index: 10; border-left: 10px solid #00aaff; }
-        .title { font-size: 3.8rem; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 10px #000; line-height: 1.2; }
-        .excerpt { font-size: 1.8rem; line-height: 1.6; text-shadow: 1px 1px 5px #000; color: #eee; }
-        .meta { margin-top: 15px; font-size: 1.2rem; color: #00aaff; font-weight: bold; }
-        #progress { position: absolute; bottom: 0; left: 0; height: 10px; background: #00aaff; width: 0%; z-index: 20; }
+
+        .slide img {
+            width: 100%; height: 100%; object-fit: cover;
+            position: absolute; top: 0; left: 0;
+            filter: brightness(0.5); /* 文字を読みやすくするために暗くする */
+        }
+
+        .content-box {
+            position: absolute; bottom: 12%; left: 5%; width: 85%;
+            padding: 40px; background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px); /* 背景をぼかして高級感を出す */
+            z-index: 10; border-left: 12px solid #fff;
+        }
+
+        .title { font-size: 3.8rem; font-weight: bold; margin: 0 0 20px 0; line-height: 1.2; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); }
+        .excerpt { font-size: 1.8rem; line-height: 1.6; color: #f0f0f0; margin: 0; }
+        .meta { margin-top: 20px; font-size: 1.3rem; color: #93c5fd; font-weight: bold; }
+        
+        #progress { position: absolute; bottom: 0; left: 0; height: 10px; background: #fff; width: 0%; z-index: 20; }
     </style>
 </head>
 <body>
@@ -26,7 +46,7 @@
         let currentIndex = 0;
 
         async function init() {
-            console.log("System Start");
+            console.log("System Ready");
             await updateNews();
             render();
             setInterval(render, 8000);
@@ -38,8 +58,7 @@
                 const res = await fetch(API_URL);
                 const data = await res.json();
                 if (data && data.length > 0) newsItems = data;
-                console.log("News updated", newsItems.length);
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Update failed", e); }
         }
 
         function render() {
@@ -49,11 +68,13 @@
             const div = document.createElement('div');
             div.className = 'slide';
             
+            // 画像要素の作成
             const img = document.createElement('img');
             img.src = item.image;
-            // 画像読み込みエラー時のフォールバック（一般的なニュース背景画像）
+            img.onload = () => console.log("Image loaded:", item.image);
             img.onerror = function() {
-                this.src = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1920";
+                console.warn("Image fail, using fallback color");
+                this.style.display = 'none'; // 画像を消して背景グラデーションを見せる
             };
 
             div.appendChild(img);
@@ -61,17 +82,17 @@
                 <div class="content-box">
                     <div class="title">${item.title}</div>
                     <div class="excerpt">${item.excerpt}</div>
-                    <div class="meta">出典：NHKニュース (${item.time} 更新)</div>
+                    <div class="meta">NHK NEWS | ${item.time} 更新</div>
                 </div>
             `;
             
             app.appendChild(div);
-            setTimeout(() => div.classList.add('active'), 50);
+            setTimeout(() => div.classList.add('active'), 100);
 
             if (app.children.length > 1) {
                 const old = app.children[0];
                 old.classList.remove('active');
-                setTimeout(() => app.removeChild(old), 1600);
+                setTimeout(() => { if(old.parentNode) app.removeChild(old); }, 1600);
             }
 
             const bar = document.getElementById('progress');
