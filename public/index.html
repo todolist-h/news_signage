@@ -2,30 +2,63 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="referrer" content="no-referrer">
-    <title>School Signage</title>
+    <title>School Digital Signage</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #222; color: #fff; font-family: sans-serif; }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #001529; color: #fff; font-family: "Helvetica Neue", Arial, sans-serif; cursor: none; }
         #app { position: relative; width: 100vw; height: 100vh; }
-        .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 1.2s ease-in-out; z-index: 1; background: #000; }
+        
+        .slide {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0; transition: opacity 1.5s ease-in-out; z-index: 1;
+            /* 背景をグラデーションと画像で構成 */
+            background: linear-gradient(135deg, #001529 0%, #003366 100%);
+            display: flex; align-items: center; justify-content: center;
+        }
+        
+        /* 背景に薄くテクスチャや画像を敷く（NHKの写真の代わり） */
+        .slide::before {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('https://images.unsplash.com/photo-1523050853063-bd80e295c226?auto=format&fit=crop&q=80&w=1920');
+            background-size: cover; background-position: center;
+            opacity: 0.3; /* ニュースの文字を邪魔しない程度に薄く */
+        }
+
         .active { opacity: 1; z-index: 2; }
-        .slide img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
-        .content-box { position: absolute; bottom: 10%; left: 5%; width: 85%; padding: 40px; background: linear-gradient(transparent, rgba(0,0,0,0.9)); z-index: 10; }
-        .title { font-size: 3.5rem; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 4px #000; }
-        .excerpt { font-size: 1.6rem; line-height: 1.6; text-shadow: 1px 1px 3px #000; }
+
+        .content-box {
+            position: relative; width: 80%; max-width: 1100px;
+            padding: 60px; border-left: 8px solid #fff;
+            background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+
+        .title { font-size: 3.8rem; font-weight: bold; margin-bottom: 25px; line-height: 1.3; }
+        .excerpt { font-size: 1.8rem; line-height: 1.7; color: #e0e0e0; }
+        .source { position: absolute; right: 30px; bottom: 30px; font-size: 1.2rem; color: rgba(255,255,255,0.6); }
+        
+        #progress { position: absolute; bottom: 0; left: 0; height: 8px; background: #00aaff; width: 0%; z-index: 20; }
     </style>
 </head>
 <body>
     <div id="app"></div>
+    <div id="progress"></div>
+
     <script>
         const API_URL = '/api/news';
         let newsItems = [];
         let currentIndex = 0;
 
+        // 背景画像のバリエーション（教育機関らしい画像）
+        const bgImages = [
+            'https://images.unsplash.com/photo-1523050853063-bd80e295c226?q=80&w=1920',
+            'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=1920',
+            'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=1920'
+        ];
+
         async function init() {
             await updateNews();
             render();
-            setInterval(render, 7000);
+            setInterval(render, 8000);
             setInterval(updateNews, 600000);
         }
 
@@ -41,33 +74,34 @@
             if (newsItems.length === 0) return;
             const app = document.getElementById('app');
             const item = newsItems[currentIndex];
+            const randomBg = bgImages[currentIndex % bgImages.length];
+
             const div = document.createElement('div');
             div.className = 'slide';
+            // 背景画像のみ差し替え
+            div.style.setProperty('--bg-url', `url(${randomBg})`);
             
-            const img = document.createElement('img');
-            // 画像読み込み時にリファラを送らない設定を明示
-            img.referrerPolicy = "no-referrer";
-            img.src = item.image;
+            div.innerHTML = `
+                <div class="content-box">
+                    <div class="title">${item.title}</div>
+                    <div class="excerpt">${item.excerpt}</div>
+                    <div class="source">出典：NHKニュース (${item.time})</div>
+                </div>
+            `;
             
-            img.onerror = function() {
-                // NHKのロゴもリファラなしで再試行
-                if (!this.src.includes('picsum.photos')) {
-                   this.src = "https://picsum.photos/1920/1080?grayscale";
-                }
-            };
-
-            div.appendChild(img);
-            div.innerHTML += `<div class="content-box">
-                                <div class="title">${item.title}</div>
-                                <div class="excerpt">${item.excerpt}</div>
-                             </div>`;
             app.appendChild(div);
             setTimeout(() => div.classList.add('active'), 50);
+
             if (app.children.length > 1) {
                 const old = app.children[0];
                 old.classList.remove('active');
-                setTimeout(() => app.removeChild(old), 1300);
+                setTimeout(() => app.removeChild(old), 1500);
             }
+
+            const bar = document.getElementById('progress');
+            bar.style.transition = 'none'; bar.style.width = '0%';
+            setTimeout(() => { bar.style.transition = 'width 8s linear'; bar.style.width = '100%'; }, 50);
+
             currentIndex = (currentIndex + 1) % newsItems.length;
         }
         init();
