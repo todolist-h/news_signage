@@ -2,70 +2,23 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>School Digital Signage</title>
+    <title>School Signage</title>
     <style>
-        /* 全体の基本設定：スクロールを完全に禁止 */
-        body, html { 
-            margin: 0; padding: 0; 
-            height: 100%; width: 100%; 
-            overflow: hidden; 
-            background: #000; 
-            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif; 
-            /* マウスカーソルを非表示（サイネージ用） */
-            cursor: none; 
-        }
-
-        /* 16:9のコンテナ */
-        #app { 
-            position: relative; 
-            width: 100vw; 
-            height: 100vh; 
-            background: #000;
-        }
-
-        /* スライド：画面いっぱいに広がる */
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #000; color: #fff; font-family: sans-serif; }
+        #app { position: relative; width: 100vw; height: 100vh; }
         .slide {
-            position: absolute; top: 0; left: 0; 
-            width: 100%; height: 100%;
-            background-size: cover; 
-            background-position: center;
-            background-repeat: no-repeat;
-            opacity: 0; 
-            transition: opacity 0.8s ease-in-out; 
-            z-index: 1; 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; background-position: center;
+            opacity: 0; transition: opacity 1s; z-index: 1;
         }
-
-        .slide.active { 
-            opacity: 1; 
-            z-index: 2; 
-        }
-
-        /* ニューステキスト：16:9の画面内でバランス良く配置 */
+        .active { opacity: 1; z-index: 2; }
         .content-box {
-            position: absolute; 
-            bottom: 10%; /* 下から10%の位置 */
-            left: 5%; 
-            width: 80%; /* 16:9で見た時に読みやすい幅 */
-            max-width: 1200px;
-            padding: 40px; 
-            color: white;
-            background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 60%, transparent 100%);
-            text-shadow: 2px 2px 10px rgba(0,0,0,0.7);
-            z-index: 10;
-            box-sizing: border-box;
+            position: absolute; bottom: 10%; left: 5%; width: 80%;
+            padding: 30px; background: rgba(0,0,0,0.7); z-index: 10;
         }
-
-        /* フォントサイズをモニター用に最適化（少し大きくしています） */
-        .title { font-size: 3.8rem; font-weight: bold; margin: 0 0 20px 0; line-height: 1.2; }
-        .excerpt { font-size: 1.8rem; line-height: 1.6; opacity: 0.95; margin: 0; }
-        .meta { margin-top: 20px; font-size: 1.3rem; color: #ccc; }
-
-        /* 下部のプログレスバー */
-        #progress {
-            position: absolute; bottom: 0; left: 0; height: 8px;
-            background: #fff; width: 0%; z-index: 20;
-        }
+        .title { font-size: 3rem; font-weight: bold; margin-bottom: 15px; }
+        .excerpt { font-size: 1.5rem; line-height: 1.5; }
+        #progress { position: absolute; bottom: 0; left: 0; height: 8px; background: #fff; width: 0%; z-index: 20; }
     </style>
 </head>
 <body>
@@ -74,73 +27,71 @@
 
     <script>
         const API_URL = '/api/news';
-        const INTERVAL = 7000; 
         let newsItems = [];
         let currentIndex = 0;
+
+        async function init() {
+            console.log("System Start");
+            await updateNews();
+            // 初回表示
+            render();
+            // 7秒ごとに切り替え
+            setInterval(render, 7000);
+            // 10分ごとにニュース更新
+            setInterval(updateNews, 600000);
+        }
 
         async function updateNews() {
             try {
                 const res = await fetch(API_URL);
                 const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) {
+                if (data && data.length > 0) {
                     newsItems = data;
-                    if (document.getElementById('app').children.length === 0) {
-                        renderSlide();
-                    }
+                    console.log("Data loaded:", data.length);
                 }
             } catch (e) {
-                console.error("ニュースの取得に失敗しました", e);
+                console.error("API Error:", e);
             }
         }
 
-        function renderSlide() {
+        function render() {
             if (newsItems.length === 0) return;
-
             const app = document.getElementById('app');
             const item = newsItems[currentIndex];
-            
-            const newSlide = document.createElement('div');
-            newSlide.className = 'slide';
-            newSlide.style.backgroundImage = `url(${item.image})`;
-            newSlide.innerHTML = `
-                <div class="content-box">
-                    <div class="title">${item.title}</div>
-                    <div class="excerpt">${item.excerpt}</div>
-                    <div class="meta">${item.time} 更新</div>
-                </div>
-            `;
-            
-            app.appendChild(newSlide);
 
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    newSlide.classList.add('active');
-                }, 50);
-            });
+            // 新しいスライド作成
+            const div = document.createElement('div');
+            div.className = 'slide';
+            div.style.backgroundImage = "url('" + item.image + "')";
+            div.innerHTML = '<div class="content-box">' +
+                            '<div class="title">' + item.title + '</div>' +
+                            '<div class="excerpt">' + item.excerpt + '</div>' +
+                            '</div>';
+            app.appendChild(div);
 
+            // フェードイン
+            setTimeout(() => div.classList.add('active'), 50);
+
+            // 古いスライド削除
             if (app.children.length > 1) {
-                const oldSlide = app.children[0];
-                oldSlide.classList.remove('active'); 
-                setTimeout(() => {
-                    if (oldSlide && oldSlide.parentNode === app) {
-                        app.removeChild(oldSlide);
-                    }
-                }, 1000); 
+                const old = app.children[0];
+                old.classList.remove('active');
+                setTimeout(() => app.removeChild(old), 1100);
             }
 
+            // プログレスバー
             const bar = document.getElementById('progress');
             bar.style.transition = 'none';
             bar.style.width = '0%';
-            bar.offsetHeight; 
-            bar.style.transition = `width ${INTERVAL}ms linear`;
-            bar.style.width = '100%';
+            setTimeout(() => {
+                bar.style.transition = 'width 7s linear';
+                bar.style.width = '100%';
+            }, 50);
 
             currentIndex = (currentIndex + 1) % newsItems.length;
         }
 
-        updateNews();
-        setInterval(renderSlide, INTERVAL);
-        setInterval(updateNews, 10 * 60 * 1000);
+        init();
     </script>
 </body>
 </html>
