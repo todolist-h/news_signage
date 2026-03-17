@@ -4,21 +4,31 @@
     <meta charset="UTF-8">
     <title>School Signage</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #000; color: #fff; font-family: sans-serif; }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #222; color: #fff; font-family: sans-serif; }
         #app { position: relative; width: 100vw; height: 100vh; }
+        
         .slide {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-size: cover; background-position: center;
-            opacity: 0; transition: opacity 1s; z-index: 1;
+            opacity: 0; transition: opacity 1.2s ease-in-out; z-index: 1;
+            background: #000;
         }
         .active { opacity: 1; z-index: 2; }
+
+        /* 画像を画面いっぱいに広げる設定 */
+        .slide img {
+            width: 100%; height: 100%; object-fit: cover;
+            position: absolute; top: 0; left: 0;
+        }
+
         .content-box {
             position: absolute; bottom: 10%; left: 5%; width: 80%;
-            padding: 30px; background: rgba(0,0,0,0.7); z-index: 10;
+            padding: 40px; background: linear-gradient(transparent, rgba(0,0,0,0.9));
+            z-index: 10;
         }
-        .title { font-size: 3rem; font-weight: bold; margin-bottom: 15px; }
-        .excerpt { font-size: 1.5rem; line-height: 1.5; }
-        #progress { position: absolute; bottom: 0; left: 0; height: 8px; background: #fff; width: 0%; z-index: 20; }
+        .title { font-size: 3.5rem; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 4px #000; }
+        .excerpt { font-size: 1.6rem; line-height: 1.6; text-shadow: 1px 1px 3px #000; }
+        
+        #progress { position: absolute; bottom: 0; left: 0; height: 10px; background: #fff; width: 0%; z-index: 20; }
     </style>
 </head>
 <body>
@@ -33,11 +43,8 @@
         async function init() {
             console.log("System Start");
             await updateNews();
-            // 初回表示
             render();
-            // 7秒ごとに切り替え
             setInterval(render, 7000);
-            // 10分ごとにニュース更新
             setInterval(updateNews, 600000);
         }
 
@@ -59,27 +66,34 @@
             const app = document.getElementById('app');
             const item = newsItems[currentIndex];
 
-            // 新しいスライド作成
             const div = document.createElement('div');
             div.className = 'slide';
-            div.style.backgroundImage = "url('" + item.image + "')";
-            div.innerHTML = '<div class="content-box">' +
-                            '<div class="title">' + item.title + '</div>' +
-                            '<div class="excerpt">' + item.excerpt + '</div>' +
-                            '</div>';
+            
+            // 背景画像。プロキシURLが効かない場合に備え、
+            // もし画像が読み込めなかったらNHKの標準ロゴ（またはグレー）にする処理
+            const img = document.createElement('img');
+            img.src = item.image;
+            img.onerror = function() {
+                console.warn("Image Load Failed:", item.image);
+                this.src = "https://www3.nhk.or.jp/news/special/common/images/ogp.png";
+            };
+
+            div.appendChild(img);
+            div.innerHTML += '<div class="content-box">' +
+                             '<div class="title">' + item.title + '</div>' +
+                             '<div class="excerpt">' + item.excerpt + '</div>' +
+                             '</div>';
+            
             app.appendChild(div);
 
-            // フェードイン
             setTimeout(() => div.classList.add('active'), 50);
 
-            // 古いスライド削除
             if (app.children.length > 1) {
                 const old = app.children[0];
                 old.classList.remove('active');
-                setTimeout(() => app.removeChild(old), 1100);
+                setTimeout(() => app.removeChild(old), 1300);
             }
 
-            // プログレスバー
             const bar = document.getElementById('progress');
             bar.style.transition = 'none';
             bar.style.width = '0%';
