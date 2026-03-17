@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>School Digital Signage</title>
+    <title>School Signage</title>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #000; color: #fff; font-family: "Helvetica Neue", Arial, sans-serif; cursor: none; }
         #app { position: relative; width: 100vw; height: 100vh; }
@@ -10,34 +10,51 @@
         .slide {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             opacity: 0; transition: opacity 1.5s ease-in-out; z-index: 1;
-            /* 画像が出ない時のための予備背景（おしゃれな青系グラデーション） */
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
         }
-        
         .active { opacity: 1; z-index: 2; }
 
         .slide img {
             width: 100%; height: 100%; object-fit: cover;
             position: absolute; top: 0; left: 0;
-            filter: brightness(0.5); /* 文字を読みやすくするために暗くする */
+            filter: brightness(0.45) saturate(1.2);
         }
 
         .content-box {
-            position: absolute; bottom: 12%; left: 5%; width: 85%;
-            padding: 40px; background: rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(8px); /* 背景をぼかして高級感を出す */
-            z-index: 10; border-left: 12px solid #fff;
+            position: absolute; bottom: 15%; left: 5%; width: 85%;
+            padding: 40px; background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px); z-index: 10;
+            border-left: 15px solid #00aaff;
         }
 
-        .title { font-size: 3.8rem; font-weight: bold; margin: 0 0 20px 0; line-height: 1.2; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); }
-        .excerpt { font-size: 1.8rem; line-height: 1.6; color: #f0f0f0; margin: 0; }
-        .meta { margin-top: 20px; font-size: 1.3rem; color: #93c5fd; font-weight: bold; }
+        .title { font-size: 4rem; font-weight: bold; margin: 0 0 20px 0; line-height: 1.2; text-shadow: 2px 2px 15px rgba(0,0,0,0.8); }
+        .excerpt { font-size: 2rem; line-height: 1.6; color: #e5e7eb; margin: 0; }
+        .meta { margin-top: 20px; font-size: 1.4rem; color: #60a5fa; font-weight: bold; }
         
-        #progress { position: absolute; bottom: 0; left: 0; height: 10px; background: #fff; width: 0%; z-index: 20; }
+        /* テロップ部分 */
+        #ticker {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 60px;
+            background: rgba(0, 80, 160, 0.9); z-index: 30;
+            overflow: hidden; display: flex; align-items: center;
+            border-top: 2px solid #00aaff;
+        }
+        .ticker-text {
+            white-space: nowrap; font-size: 1.8rem; font-weight: bold;
+            padding-left: 100%; animation: scroll 25s linear infinite;
+        }
+        @keyframes scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+        }
+
+        #progress { position: absolute; bottom: 60px; left: 0; height: 6px; background: #fff; width: 0%; z-index: 25; }
     </style>
 </head>
 <body>
     <div id="app"></div>
+    <div id="ticker">
+        <div class="ticker-text">【連絡事項】明日は短縮授業のため、最終下校時刻は 16:30 となります。／ 次回の避難訓練は来週の火曜日です。各自避難経路を確認しておきましょう。</div>
+    </div>
     <div id="progress"></div>
 
     <script>
@@ -46,11 +63,10 @@
         let currentIndex = 0;
 
         async function init() {
-            console.log("System Ready");
             await updateNews();
             render();
-            setInterval(render, 8000);
-            setInterval(updateNews, 600000);
+            setInterval(render, 8000); // 8秒ごとにスライド
+            setInterval(updateNews, 600000); // 10分ごとにニュース更新
         }
 
         async function updateNews() {
@@ -58,7 +74,7 @@
                 const res = await fetch(API_URL);
                 const data = await res.json();
                 if (data && data.length > 0) newsItems = data;
-            } catch (e) { console.error("Update failed", e); }
+            } catch (e) { console.error(e); }
         }
 
         function render() {
@@ -68,13 +84,11 @@
             const div = document.createElement('div');
             div.className = 'slide';
             
-            // 画像要素の作成
             const img = document.createElement('img');
+            // タイトルに合わせてUnsplashから検索。失敗したら学校風の画像を出す
             img.src = item.image;
-            img.onload = () => console.log("Image loaded:", item.image);
             img.onerror = function() {
-                console.warn("Image fail, using fallback color");
-                this.style.display = 'none'; // 画像を消して背景グラデーションを見せる
+                this.src = "https://images.unsplash.com/photo-1523050853063-bd80e295c226?q=80&w=1920"; 
             };
 
             div.appendChild(img);
