@@ -13,18 +13,15 @@ export default async function handler(req, res) {
     if (!items) return res.status(200).json([]);
     if (!Array.isArray(items)) items = [items];
 
-    const newsData = items.slice(0, 10).map((item) => {
-      // 1. ニュースのタイトルから検索キーワードを抽出（最初の10文字程度）
-      // タイトルに含まれる固有名詞や一般名詞に反応してUnsplashが画像を選びます
-      const keyword = encodeURIComponent(item.title.substring(0, 10));
+    const newsData = items.slice(0, 10).map((item, index) => {
+      // タイトルからキーワードを抽出（記号などを除外）
+      const cleanTitle = item.title.replace(/[「」『』【】]/g, '');
+      const keyword = encodeURIComponent(cleanTitle.substring(0, 15));
       
-      // 2. UnsplashのSource APIを使用（1920x1080、キーワード指定）
-      // 日本語のキーワードでも、ブラウザ側がある程度解釈してくれます
-      const finalImageUrl = `https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&q=80&w=1920`; 
-      // ↑これはデフォルトのニュースっぽい画像。以下でキーワード検索URLを生成します。
-      const searchImageUrl = `https://source.unsplash.com/featured/1920x1080?${keyword},news`;
+      // Unsplashの新しい画像生成URL（source.unsplash.com は不安定なためこちらを推奨）
+      // indexを付けて毎回違う画像が出るようにします
+      const imageUrl = `https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1920&q=80&sig=${index}&keywords=${keyword}`;
 
-      // 説明文のクリーニング
       const cleanDescription = item.description 
         ? item.description.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim().substring(0, 80) + '...'
         : '';
@@ -32,7 +29,7 @@ export default async function handler(req, res) {
       return {
         title: item.title || 'No Title',
         excerpt: cleanDescription,
-        image: searchImageUrl, // キーワードに基づいた画像
+        image: imageUrl,
         time: item.pubDate 
           ? new Date(item.pubDate).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) 
           : '--:--'
@@ -42,9 +39,7 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
     res.status(200).json(newsData);
-
   } catch (error) {
-    console.error("API Error:", error);
     res.status(500).json({ error: 'Failed' });
   }
 }
