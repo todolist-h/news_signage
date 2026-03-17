@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 import xml2js from 'xml2js';
 
-const RSS_URL = 'https://www3.nhk.or.jp/rss/news/cat7.xml';
+const RSS_URL = 'https://www3.nhk.or.jp/rss/news/cat0.xml';
 
 export default async function handler(req, res) {
   try {
@@ -14,22 +14,24 @@ export default async function handler(req, res) {
     if (!Array.isArray(items)) items = [items];
 
     const newsData = items.slice(0, 10).map((item, index) => {
-      // タイトルからキーワードを抽出（記号などを除外）
-      const cleanTitle = item.title.replace(/[「」『』【】]/g, '');
-      const keyword = encodeURIComponent(cleanTitle.substring(0, 15));
+      // タイトルから記号を消して単語に分解
+      const cleanTitle = item.title.replace(/[「」『』【】（）]/g, ' ').trim();
+      const words = cleanTitle.split(/[\s　]/).filter(w => w.length > 1);
       
-      // Unsplashの新しい画像生成URL（source.unsplash.com は不安定なためこちらを推奨）
-      // indexを付けて毎回違う画像が出るようにします
-      const imageUrl = `https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1920&q=80&sig=${index}&keywords=${keyword}`;
+      // 最初の方にある単語を検索ワードにする（なければ"news"）
+      const searchWord = words.length > 0 ? words[0] : "news";
 
+      // 説明文の掃除
       const cleanDescription = item.description 
         ? item.description.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim().substring(0, 80) + '...'
         : '';
 
       return {
-        title: item.title || 'No Title',
+        title: item.title,
         excerpt: cleanDescription,
-        image: imageUrl,
+        // sigパラメータを付けてキャッシュを防ぎ、キーワードで画像を絞り込む
+        image: `https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1920&q=80&sig=${index}&keywords=${encodeURIComponent(searchWord)}`,
+        keyword: searchWord,
         time: item.pubDate 
           ? new Date(item.pubDate).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) 
           : '--:--'
