@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>School Signage</title>
+    <title>School Digital Signage</title>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #000; color: #fff; font-family: "Helvetica Neue", Arial, "Hiragino Sans", sans-serif; cursor: none; }
         #app { position: relative; width: 100vw; height: 100vh; }
@@ -17,7 +17,7 @@
         .slide img {
             width: 100%; height: 100%; object-fit: cover;
             position: absolute; top: 0; left: 0;
-            filter: brightness(0.4) saturate(1.1);
+            filter: brightness(0.45) saturate(1.1);
         }
 
         .content-box {
@@ -28,8 +28,8 @@
             box-sizing: border-box;
         }
 
-        .title { font-size: 3.8rem; font-weight: bold; margin: 0 0 20px 0; line-height: 1.2; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        .excerpt { font-size: 1.8rem; line-height: 1.6; color: #ddd; margin: 0; }
+        .title { font-size: 3.8rem; font-weight: bold; margin: 0 0 20px 0; line-height: 1.2; text-shadow: 0 4px 15px rgba(0,0,0,0.8); }
+        .excerpt { font-size: 1.8rem; line-height: 1.6; color: #eee; margin: 0; }
         .meta { margin-top: 20px; font-size: 1.4rem; color: #00aaff; font-weight: bold; }
         
         #ticker {
@@ -65,17 +65,19 @@
             await updateNews();
             render();
             setInterval(render, 8000);
-            setInterval(updateNews, 300000); // 5分更新に短縮
+            setInterval(updateNews, 300000); 
         }
 
         async function updateNews() {
             try {
-                // キャッシュ回避のためにランダムなパラメータを付与
+                // API側もキャッシュを避けるためにタイムスタンプを付与
                 const res = await fetch(API_URL + '?t=' + Date.now());
                 const data = await res.json();
-                if (data && data.length > 0) newsItems = data;
-                console.log("Updated:", newsItems.length);
-            } catch (e) { console.error(e); }
+                if (data && data.length > 0) {
+                    newsItems = data;
+                    console.log("News updated");
+                }
+            } catch (e) { console.error("Fetch error:", e); }
         }
 
         function render() {
@@ -85,11 +87,25 @@
             const div = document.createElement('div');
             div.className = 'slide';
             
+            // --- 画像検索ワードの動的な決定 ---
+            let query = "nature,calm"; // デフォルト
+            const t = item.title;
+            if (t.match(/大谷|野球|選手|試合|五輪/)) query = "stadium,athlete";
+            else if (t.match(/雨|雪|天気|台風|気象/)) query = "sky,clouds,weather";
+            else if (t.match(/事故|事件|火災|警察/)) query = "night,city,lights";
+            else if (t.match(/宇宙|ロケット|月|星/)) query = "galaxy,starry,sky";
+            else if (t.match(/円|株|経済|市場/)) query = "tokyo,business,graph";
+            else if (t.match(/学校|教育|生徒|子供/)) query = "classroom,library";
+            else if (t.match(/首相|政府|政治|選挙/)) query = "building,parliament";
+
             const img = document.createElement('img');
-            img.src = item.image;
+            // source.unsplash.com を経由せず、sigとqueryでランダム性を確保
+            // URLに乱数を混ぜてキャッシュを強制無効化
+            const randomId = Math.floor(Math.random() * 1000);
+            img.src = `https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1920&q=80&sig=${currentIndex}_${randomId}&query=${query}`;
+            
             img.onerror = function() {
-                // 失敗時は「教室」の画像を表示
-                this.src = "https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=1920";
+                this.src = "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=1920";
             };
 
             div.appendChild(img);
