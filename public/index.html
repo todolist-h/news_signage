@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
     <title>School Signage</title>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #222; color: #fff; font-family: sans-serif; }
@@ -9,15 +10,13 @@
         .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 1.2s ease-in-out; z-index: 1; background: #000; }
         .active { opacity: 1; z-index: 2; }
         .slide img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
-        .content-box { position: absolute; bottom: 10%; left: 5%; width: 80%; padding: 40px; background: linear-gradient(transparent, rgba(0,0,0,0.9)); z-index: 10; }
+        .content-box { position: absolute; bottom: 10%; left: 5%; width: 85%; padding: 40px; background: linear-gradient(transparent, rgba(0,0,0,0.9)); z-index: 10; }
         .title { font-size: 3.5rem; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 4px #000; }
         .excerpt { font-size: 1.6rem; line-height: 1.6; text-shadow: 1px 1px 3px #000; }
-        #progress { position: absolute; bottom: 0; left: 0; height: 10px; background: #fff; width: 0%; z-index: 20; }
     </style>
 </head>
 <body>
     <div id="app"></div>
-    <div id="progress"></div>
     <script>
         const API_URL = '/api/news';
         let newsItems = [];
@@ -46,11 +45,15 @@
             div.className = 'slide';
             
             const img = document.createElement('img');
-            // プロキシを通さず直接設定
+            // 画像読み込み時にリファラを送らない設定を明示
+            img.referrerPolicy = "no-referrer";
             img.src = item.image;
+            
             img.onerror = function() {
-                // もし直接読み込みがブロックされたら予備画像
-                this.src = "https://www3.nhk.or.jp/news/special/common/images/ogp.png";
+                // NHKのロゴもリファラなしで再試行
+                if (!this.src.includes('picsum.photos')) {
+                   this.src = "https://picsum.photos/1920/1080?grayscale";
+                }
             };
 
             div.appendChild(img);
@@ -65,9 +68,6 @@
                 old.classList.remove('active');
                 setTimeout(() => app.removeChild(old), 1300);
             }
-            const bar = document.getElementById('progress');
-            bar.style.transition = 'none'; bar.style.width = '0%';
-            setTimeout(() => { bar.style.transition = 'width 7s linear'; bar.style.width = '100%'; }, 50);
             currentIndex = (currentIndex + 1) % newsItems.length;
         }
         init();
