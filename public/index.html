@@ -6,42 +6,24 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #222; color: #fff; font-family: sans-serif; }
         #app { position: relative; width: 100vw; height: 100vh; }
-        
-        .slide {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            opacity: 0; transition: opacity 1.2s ease-in-out; z-index: 1;
-            background: #000;
-        }
+        .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 1.2s ease-in-out; z-index: 1; background: #000; }
         .active { opacity: 1; z-index: 2; }
-
-        /* 画像を画面いっぱいに広げる設定 */
-        .slide img {
-            width: 100%; height: 100%; object-fit: cover;
-            position: absolute; top: 0; left: 0;
-        }
-
-        .content-box {
-            position: absolute; bottom: 10%; left: 5%; width: 80%;
-            padding: 40px; background: linear-gradient(transparent, rgba(0,0,0,0.9));
-            z-index: 10;
-        }
+        .slide img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+        .content-box { position: absolute; bottom: 10%; left: 5%; width: 80%; padding: 40px; background: linear-gradient(transparent, rgba(0,0,0,0.9)); z-index: 10; }
         .title { font-size: 3.5rem; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 4px #000; }
         .excerpt { font-size: 1.6rem; line-height: 1.6; text-shadow: 1px 1px 3px #000; }
-        
         #progress { position: absolute; bottom: 0; left: 0; height: 10px; background: #fff; width: 0%; z-index: 20; }
     </style>
 </head>
 <body>
     <div id="app"></div>
     <div id="progress"></div>
-
     <script>
         const API_URL = '/api/news';
         let newsItems = [];
         let currentIndex = 0;
 
         async function init() {
-            console.log("System Start");
             await updateNews();
             render();
             setInterval(render, 7000);
@@ -52,59 +34,42 @@
             try {
                 const res = await fetch(API_URL);
                 const data = await res.json();
-                if (data && data.length > 0) {
-                    newsItems = data;
-                    console.log("Data loaded:", data.length);
-                }
-            } catch (e) {
-                console.error("API Error:", e);
-            }
+                if (data && data.length > 0) newsItems = data;
+            } catch (e) { console.error(e); }
         }
 
         function render() {
             if (newsItems.length === 0) return;
             const app = document.getElementById('app');
             const item = newsItems[currentIndex];
-
             const div = document.createElement('div');
             div.className = 'slide';
             
-            // 背景画像。プロキシURLが効かない場合に備え、
-            // もし画像が読み込めなかったらNHKの標準ロゴ（またはグレー）にする処理
             const img = document.createElement('img');
+            // プロキシを通さず直接設定
             img.src = item.image;
             img.onerror = function() {
-                console.warn("Image Load Failed:", item.image);
+                // もし直接読み込みがブロックされたら予備画像
                 this.src = "https://www3.nhk.or.jp/news/special/common/images/ogp.png";
             };
 
             div.appendChild(img);
-            div.innerHTML += '<div class="content-box">' +
-                             '<div class="title">' + item.title + '</div>' +
-                             '<div class="excerpt">' + item.excerpt + '</div>' +
-                             '</div>';
-            
+            div.innerHTML += `<div class="content-box">
+                                <div class="title">${item.title}</div>
+                                <div class="excerpt">${item.excerpt}</div>
+                             </div>`;
             app.appendChild(div);
-
             setTimeout(() => div.classList.add('active'), 50);
-
             if (app.children.length > 1) {
                 const old = app.children[0];
                 old.classList.remove('active');
                 setTimeout(() => app.removeChild(old), 1300);
             }
-
             const bar = document.getElementById('progress');
-            bar.style.transition = 'none';
-            bar.style.width = '0%';
-            setTimeout(() => {
-                bar.style.transition = 'width 7s linear';
-                bar.style.width = '100%';
-            }, 50);
-
+            bar.style.transition = 'none'; bar.style.width = '0%';
+            setTimeout(() => { bar.style.transition = 'width 7s linear'; bar.style.width = '100%'; }, 50);
             currentIndex = (currentIndex + 1) % newsItems.length;
         }
-
         init();
     </script>
 </body>
