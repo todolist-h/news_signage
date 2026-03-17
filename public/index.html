@@ -4,56 +4,55 @@
     <meta charset="UTF-8">
     <title>School Signage</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #000; color: #fff; font-family: "Helvetica Neue", Arial, sans-serif; cursor: none; }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #000; color: #fff; font-family: "Helvetica Neue", Arial, "Hiragino Sans", sans-serif; cursor: none; }
         #app { position: relative; width: 100vw; height: 100vh; }
         
         .slide {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             opacity: 0; transition: opacity 1.5s ease-in-out; z-index: 1;
-            background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+            background: #111;
         }
         .active { opacity: 1; z-index: 2; }
 
         .slide img {
             width: 100%; height: 100%; object-fit: cover;
             position: absolute; top: 0; left: 0;
-            filter: brightness(0.45) saturate(1.2);
+            filter: brightness(0.4) saturate(1.1);
         }
 
         .content-box {
             position: absolute; bottom: 15%; left: 5%; width: 85%;
             padding: 40px; background: rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(10px); z-index: 10;
+            backdrop-filter: blur(12px); z-index: 10;
             border-left: 15px solid #00aaff;
+            box-sizing: border-box;
         }
 
-        .title { font-size: 4rem; font-weight: bold; margin: 0 0 20px 0; line-height: 1.2; text-shadow: 2px 2px 15px rgba(0,0,0,0.8); }
-        .excerpt { font-size: 2rem; line-height: 1.6; color: #e5e7eb; margin: 0; }
-        .meta { margin-top: 20px; font-size: 1.4rem; color: #60a5fa; font-weight: bold; }
+        .title { font-size: 3.8rem; font-weight: bold; margin: 0 0 20px 0; line-height: 1.2; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .excerpt { font-size: 1.8rem; line-height: 1.6; color: #ddd; margin: 0; }
+        .meta { margin-top: 20px; font-size: 1.4rem; color: #00aaff; font-weight: bold; }
         
-        /* テロップ部分 */
         #ticker {
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 60px;
-            background: rgba(0, 80, 160, 0.9); z-index: 30;
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 70px;
+            background: #003366; z-index: 30;
             overflow: hidden; display: flex; align-items: center;
-            border-top: 2px solid #00aaff;
+            border-top: 3px solid #00aaff;
         }
         .ticker-text {
-            white-space: nowrap; font-size: 1.8rem; font-weight: bold;
-            padding-left: 100%; animation: scroll 25s linear infinite;
+            white-space: nowrap; font-size: 2rem; font-weight: bold;
+            padding-left: 100%; animation: scroll 30s linear infinite;
         }
         @keyframes scroll {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-100%); }
+            from { transform: translateX(0); }
+            to { transform: translateX(-100%); }
         }
-
-        #progress { position: absolute; bottom: 60px; left: 0; height: 6px; background: #fff; width: 0%; z-index: 25; }
+        #progress { position: absolute; bottom: 70px; left: 0; height: 6px; background: #fff; width: 0%; z-index: 25; }
     </style>
 </head>
 <body>
     <div id="app"></div>
     <div id="ticker">
-        <div class="ticker-text">【連絡事項】明日は短縮授業のため、最終下校時刻は 16:30 となります。／ 次回の避難訓練は来週の火曜日です。各自避難経路を確認しておきましょう。</div>
+        <div class="ticker-text">【学校連絡】明日の朝会は体育館で行います。上履きを忘れないようにしてください。／ 図書室の新着図書が貸出開始になりました。チェックしてみてください！</div>
     </div>
     <div id="progress"></div>
 
@@ -65,15 +64,17 @@
         async function init() {
             await updateNews();
             render();
-            setInterval(render, 8000); // 8秒ごとにスライド
-            setInterval(updateNews, 600000); // 10分ごとにニュース更新
+            setInterval(render, 8000);
+            setInterval(updateNews, 300000); // 5分更新に短縮
         }
 
         async function updateNews() {
             try {
-                const res = await fetch(API_URL);
+                // キャッシュ回避のためにランダムなパラメータを付与
+                const res = await fetch(API_URL + '?t=' + Date.now());
                 const data = await res.json();
                 if (data && data.length > 0) newsItems = data;
+                console.log("Updated:", newsItems.length);
             } catch (e) { console.error(e); }
         }
 
@@ -85,10 +86,10 @@
             div.className = 'slide';
             
             const img = document.createElement('img');
-            // タイトルに合わせてUnsplashから検索。失敗したら学校風の画像を出す
             img.src = item.image;
             img.onerror = function() {
-                this.src = "https://images.unsplash.com/photo-1523050853063-bd80e295c226?q=80&w=1920"; 
+                // 失敗時は「教室」の画像を表示
+                this.src = "https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=1920";
             };
 
             div.appendChild(img);
