@@ -2,19 +2,50 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>School Digital Signage</title>
+    <title>School Signage</title>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #000; color: #fff; font-family: "Helvetica Neue", Arial, "Hiragino Sans", sans-serif; cursor: none; }
         #app { position: relative; width: 100vw; height: 100vh; }
-        .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 1.5s ease-in-out; z-index: 1; background: #111; }
+        
+        .slide {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0; transition: opacity 1.5s ease-in-out; z-index: 1;
+            /* 画像が読み込めない時の予備背景（おしゃれなグラデーション） */
+            background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+        }
         .active { opacity: 1; z-index: 2; }
-        .slide img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; filter: brightness(0.4) saturate(1.1); }
-        .content-box { position: absolute; bottom: 15%; left: 5%; width: 85%; padding: 40px; background: rgba(0, 0, 0, 0.25); backdrop-filter: blur(12px); z-index: 10; border-left: 15px solid #00aaff; box-sizing: border-box; }
+
+        .slide img {
+            width: 100%; height: 100%; object-fit: cover;
+            position: absolute; top: 0; left: 0;
+            filter: brightness(0.4) saturate(1.1);
+        }
+
+        /* 画像が読み込まれるまで img を隠すための設定 */
+        .slide img[src=""] { display: none; }
+
+        .content-box {
+            position: absolute; bottom: 15%; left: 5%; width: 85%;
+            padding: 40px; background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(15px); z-index: 10;
+            border-left: 15px solid #00aaff;
+            box-sizing: border-box;
+        }
+
         .title { font-size: 3.8rem; font-weight: bold; margin: 0 0 20px 0; line-height: 1.2; text-shadow: 0 4px 15px rgba(0,0,0,0.8); }
         .excerpt { font-size: 1.8rem; line-height: 1.6; color: #eee; margin: 0; }
         .meta { margin-top: 20px; font-size: 1.4rem; color: #00aaff; font-weight: bold; }
-        #ticker { position: absolute; bottom: 0; left: 0; width: 100%; height: 70px; background: #003366; z-index: 30; overflow: hidden; display: flex; align-items: center; border-top: 3px solid #00aaff; }
-        .ticker-text { white-space: nowrap; font-size: 2rem; font-weight: bold; padding-left: 100%; animation: scroll 30s linear infinite; }
+        
+        #ticker {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 70px;
+            background: #003366; z-index: 30;
+            overflow: hidden; display: flex; align-items: center;
+            border-top: 3px solid #00aaff;
+        }
+        .ticker-text {
+            white-space: nowrap; font-size: 2rem; font-weight: bold;
+            padding-left: 100%; animation: scroll 30s linear infinite;
+        }
         @keyframes scroll { from { transform: translateX(0); } to { transform: translateX(-100%); } }
         #progress { position: absolute; bottom: 70px; left: 0; height: 6px; background: #fff; width: 0%; z-index: 25; }
     </style>
@@ -22,7 +53,7 @@
 <body>
     <div id="app"></div>
     <div id="ticker">
-        <div class="ticker-text">【学校連絡】最新のニュースを表示しています。画像はイメージです。／ 明日は通常通りの登校となります。</div>
+        <div class="ticker-text">【学校連絡】最新ニュースを配信中。／ 本日、放課後の部活動は通常通り実施します。</div>
     </div>
     <div id="progress"></div>
 
@@ -43,7 +74,7 @@
                 const res = await fetch(API_URL + '?t=' + Date.now());
                 const data = await res.json();
                 if (data && data.length > 0) newsItems = data;
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Fetch error:", e); }
         }
 
         function render() {
@@ -54,12 +85,11 @@
             div.className = 'slide';
             
             const img = document.createElement('img');
-            // フロント側でもURLの最後に乱数を追加して、ブラウザのキャッシュを完全に無効化する
-            img.src = item.image + "&cb=" + Math.random();
-            
-            img.onerror = function() {
-                this.src = "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=1920";
-            };
+            // 画像読み込み完了後に表示する
+            img.onload = () => { img.style.opacity = "1"; };
+            // 読み込みに失敗したら画像を消して背景のグラデーションを見せる
+            img.onerror = () => { img.style.display = "none"; };
+            img.src = item.image;
 
             div.appendChild(img);
             div.innerHTML += `
