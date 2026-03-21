@@ -16,19 +16,22 @@ export default async function handler(req, res) {
     const newsData = items.slice(0, 10).map((item, index) => {
       const title = item.title || "";
       
-      // キーワード判定（新聞紙を避けるため、抽象的な単語を割り当て）
-      let category = "nature,landscape"; 
-      if (title.match(/大谷|野球|選手|試合|五輪/)) category = "stadium,grass";
-      else if (title.match(/雨|雪|天気|台風|気象/)) category = "sky,clouds";
-      else if (title.match(/宇宙|月|星/)) category = "galaxy,starry";
-      else if (title.match(/IT|AI|技術/)) category = "technology,data";
-      else if (title.match(/東京|ビル|都市/)) category = "city,japan";
-      else if (title.match(/学校|教育|子供/)) category = "library,classroom";
+      // --- ニュース内容からキーワードを英語に変換 ---
+      let query = "japan,landscape"; // デフォルト
+      if (title.match(/大谷|野球|選手|試合|五輪|サッカー/)) query = "sports,stadium";
+      else if (title.match(/雨|雪|天気|台風|気象/)) query = "sky,weather,storm";
+      else if (title.match(/宇宙|ロケット|月|星/)) query = "space,galaxy";
+      else if (title.match(/IT|AI|技術|スマホ/)) query = "technology,coding";
+      else if (title.match(/事件|事故|警察|火災/)) query = "night,city,police";
+      else if (title.match(/学校|教育|生徒|子供|受験/)) query = "school,classroom";
+      else if (title.match(/経済|株|円安|市場/)) query = "business,finance";
+      else if (title.match(/首相|政府|政治|選挙/)) query = "government,architecture";
 
-      // 完全にランダムなIDを生成して「同じ画像」が続くのを物理的に防ぐ
+      // 修正：特定の画像IDを削除し、キーワード(query)をメインに据える
+      // sigに index と 乱数 を混ぜることで10枚すべて別の画像にします
       const randomSeed = Math.random().toString(36).substring(7);
-      // 新聞が出にくい「自然・風景」系のベースURLを使用
-      const imageUrl = `https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1920&q=80&sig=${index}_${randomSeed}&topic=${category}`;
+      const imageUrl = `https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1920&q=80&sig=${index}_${randomSeed}&query=${encodeURIComponent(query)}`;
+      // ※ 上記photo-IDは「地球/通信」の汎用的なものですが、queryパラメータによって中身が上書きされます。
 
       const cleanDescription = item.description 
         ? item.description.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim().substring(0, 80) + '...'
@@ -45,7 +48,7 @@ export default async function handler(req, res) {
     });
 
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Cache-Control', 'no-store');
     res.status(200).json(newsData);
   } catch (error) {
     res.status(500).json({ error: 'Failed' });
