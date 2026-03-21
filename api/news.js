@@ -16,20 +16,19 @@ export default async function handler(req, res) {
     const newsData = items.slice(0, 10).map((item, index) => {
       const title = item.title || "";
       
-      // ニュースの内容からキーワードを決定
-      let query = "landscape,nature"; 
-      if (title.match(/大谷|野球|選手|試合|サッカー/)) query = "stadium,sports";
-      else if (title.match(/雨|雪|天気|台風|気象/)) query = "weather,clouds";
-      else if (title.match(/宇宙|ロケット|月|星/)) query = "space,stars";
-      else if (title.match(/IT|AI|技術|スマホ/)) query = "technology,cyber";
-      else if (title.match(/事件|事故|警察|火災/)) query = "city,night";
-      else if (title.match(/学校|教育|生徒|子供/)) query = "school,classroom";
-      else if (title.match(/経済|株|円安/)) query = "business,finance";
-      else if (title.match(/首相|政府|政治/)) query = "japan,building";
+      // キーワード判定（画像の雰囲気を変えるため）
+      let keyword = "nature"; 
+      if (title.match(/大谷|野球|選手|試合|スポーツ/)) keyword = "sport";
+      else if (title.match(/雨|雪|天気|台風|気象/)) keyword = "weather";
+      else if (title.match(/宇宙|ロケット|星/)) keyword = "space";
+      else if (title.match(/IT|AI|技術|コンピュータ/)) keyword = "technology";
+      else if (title.match(/事件|事故|警察|夜/)) keyword = "city";
+      else if (title.match(/学校|教育|子供/)) keyword = "study";
+      else if (title.match(/経済|株|円安|金/)) keyword = "business";
 
-      // 安定して画像が出る Source Unsplash の新しい形式
-      // sigパラメータを付けることで、同じキーワードでも違う画像が選ばれます
-      const imageUrl = `https://source.unsplash.com/1600x900/?${encodeURIComponent(query)}&sig=${index}`;
+      // 取得元を変更：Lorem Picsum（シード値を変えることで重複を防ぐ）
+      // 形式: https://picsum.photos/seed/{識別子}/1920/1080
+      const imageUrl = `https://picsum.photos/seed/${encodeURIComponent(keyword + index)}/1920/1080`;
 
       const cleanDescription = item.description 
         ? item.description.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim().substring(0, 80) + '...'
