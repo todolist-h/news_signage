@@ -2,52 +2,66 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>School Signage</title>
+    <title>School News Signage</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #000; color: #fff; font-family: "Helvetica Neue", Arial, "Hiragino Sans", sans-serif; cursor: none; }
-        #app { position: relative; width: 100vw; height: 100vh; }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #001a33; color: #fff; font-family: "Helvetica Neue", Arial, "Hiragino Sans", sans-serif; cursor: none; }
+        
+        /* 動く背景グラデーション */
+        #bg-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(125deg, #001a33, #003366, #005588, #001a33);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            z-index: 1;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        #app { position: relative; width: 100vw; height: 100vh; z-index: 10; }
         
         .slide {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            opacity: 0; transition: opacity 1.5s ease-in-out; z-index: 1;
-            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+            opacity: 0; transition: all 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; align-items: center; justify-content: center;
         }
-        .active { opacity: 1; z-index: 2; }
-
-        .slide img {
-            width: 100%; height: 100%; object-fit: cover;
-            position: absolute; top: 0; left: 0;
-            filter: brightness(0.4);
-            opacity: 0; /* 最初は隠しておく */
-            transition: opacity 1s ease-in;
-        }
+        .active { opacity: 1; transform: scale(1); }
 
         .content-box {
-            position: absolute; bottom: 15%; left: 5%; width: 85%;
-            padding: 40px; background: rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(10px); z-index: 10;
-            border-left: 15px solid #00aaff;
-            box-sizing: border-box;
+            width: 85%; padding: 60px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
         }
 
-        .title { font-size: 3.8rem; font-weight: bold; margin-bottom: 20px; line-height: 1.2; }
-        .excerpt { font-size: 1.8rem; line-height: 1.6; color: #ddd; }
-        .meta { margin-top: 20px; font-size: 1.4rem; color: #00aaff; }
+        .title { font-size: 4rem; font-weight: bold; margin-bottom: 30px; line-height: 1.3; color: #fff; border-bottom: 4px solid #00aaff; padding-bottom: 20px; }
+        .excerpt { font-size: 2rem; line-height: 1.6; color: #cbd5e1; }
+        .meta { margin-top: 30px; font-size: 1.5rem; color: #00aaff; font-weight: bold; text-align: right; }
         
         #ticker {
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 70px;
-            background: #003366; z-index: 30; overflow: hidden; display: flex; align-items: center;
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 80px;
+            background: rgba(0, 0, 0, 0.8); z-index: 30;
+            overflow: hidden; display: flex; align-items: center;
+            border-top: 2px solid #00aaff;
         }
         .ticker-text {
-            white-space: nowrap; font-size: 2rem; font-weight: bold;
-            padding-left: 100%; animation: scroll 30s linear infinite;
+            white-space: nowrap; font-size: 2.2rem; font-weight: bold;
+            padding-left: 100%; animation: scroll 35s linear infinite;
+            color: #fff;
         }
         @keyframes scroll { from { transform: translateX(0); } to { transform: translateX(-100%); } }
     </style>
 </head>
 <body>
+    <div id="bg-canvas"></div>
     <div id="app"></div>
-    <div id="ticker"><div class="ticker-text">【学校連絡】画像取得元を安定版に変更しました。ニュースの内容に合わせたイメージが表示されます。</div></div>
+    <div id="ticker">
+        <div class="ticker-text">【学校連絡】最新ニュースを放送中。／ 明日の登校時は交通安全に十分気をつけてください。</div>
+    </div>
 
     <script>
         const API_URL = '/api/news';
@@ -57,7 +71,7 @@
         async function init() {
             await updateNews();
             render();
-            setInterval(render, 10000); // 10秒に少し延ばして読み込み時間を確保
+            setInterval(render, 10000); 
             setInterval(updateNews, 300000); 
         }
 
@@ -76,12 +90,7 @@
             const div = document.createElement('div');
             div.className = 'slide';
             
-            const img = document.createElement('img');
-            img.onload = () => { img.style.opacity = "1"; }; // 読み込み完了したらフェードイン
-            img.src = item.image;
-
-            div.appendChild(img);
-            div.innerHTML += `
+            div.innerHTML = `
                 <div class="content-box">
                     <div class="title">${item.title}</div>
                     <div class="excerpt">${item.excerpt}</div>
@@ -94,8 +103,9 @@
 
             if (app.children.length > 1) {
                 const old = app.children[0];
+                old.style.transform = "translateY(-20px)";
                 old.classList.remove('active');
-                setTimeout(() => { if(old.parentNode) app.removeChild(old); }, 2000);
+                setTimeout(() => { if(old.parentNode) app.removeChild(old); }, 1500);
             }
             currentIndex = (currentIndex + 1) % newsItems.length;
         }
