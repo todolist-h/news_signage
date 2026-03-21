@@ -2,57 +2,52 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>School Digital Signage</title>
+    <meta name="referrer" content="no-referrer">
+    <title>School Digital Signage (Yahoo)</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #000; color: #fff; font-family: "Helvetica Neue", Arial, "Hiragino Sans", sans-serif; cursor: none; }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #000; color: #fff; font-family: sans-serif; cursor: none; }
         #app { position: relative; width: 100vw; height: 100vh; }
         
         .slide {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             opacity: 0; transition: opacity 1.5s ease-in-out; z-index: 1;
-            background: #111;
+            /* 画像が出ない時の予備背景（グラデーション） */
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
         }
         .active { opacity: 1; z-index: 2; }
 
         .slide img {
             width: 100%; height: 100%; object-fit: cover;
             position: absolute; top: 0; left: 0;
-            filter: brightness(0.45) saturate(1.1);
+            filter: brightness(0.5);
         }
 
         .content-box {
             position: absolute; bottom: 15%; left: 5%; width: 85%;
-            padding: 40px; background: rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(12px); z-index: 10;
-            border-left: 15px solid #00aaff;
-            box-sizing: border-box;
+            padding: 40px; background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px); z-index: 10;
+            border-left: 12px solid #ff0000; /* Yahooカラーっぽく赤に */
         }
 
-        .title { font-size: 3.8rem; font-weight: bold; margin: 0 0 20px 0; line-height: 1.2; text-shadow: 0 4px 15px rgba(0,0,0,0.8); }
-        .excerpt { font-size: 1.8rem; line-height: 1.6; color: #eee; margin: 0; }
-        .meta { margin-top: 20px; font-size: 1.4rem; color: #00aaff; font-weight: bold; }
+        .title { font-size: 3.5rem; font-weight: bold; margin-bottom: 20px; line-height: 1.2; }
+        .excerpt { font-size: 1.6rem; line-height: 1.6; color: #eee; }
         
         #ticker {
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 70px;
-            background: #003366; z-index: 30;
-            overflow: hidden; display: flex; align-items: center;
-            border-top: 3px solid #00aaff;
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 60px;
+            background: #222; z-index: 30; overflow: hidden; display: flex; align-items: center;
         }
         .ticker-text {
-            white-space: nowrap; font-size: 2rem; font-weight: bold;
+            white-space: nowrap; font-size: 1.8rem; font-weight: bold;
             padding-left: 100%; animation: scroll 30s linear infinite;
         }
-        @keyframes scroll {
-            from { transform: translateX(0); }
-            to { transform: translateX(-100%); }
-        }
-        #progress { position: absolute; bottom: 70px; left: 0; height: 6px; background: #fff; width: 0%; z-index: 25; }
+        @keyframes scroll { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+        #progress { position: absolute; bottom: 60px; left: 0; height: 6px; background: #ff0000; width: 0%; z-index: 25; }
     </style>
 </head>
 <body>
     <div id="app"></div>
     <div id="ticker">
-        <div class="ticker-text">【学校連絡】明日の朝会は体育館で行います。上履きを忘れないようにしてください。／ 図書室の新着図書が貸出開始になりました。チェックしてみてください！</div>
+        <div class="ticker-text">【学校連絡】Yahoo!ニュース連携テスト中。画像が表示されない場合は自動で背景が切り替わります。</div>
     </div>
     <div id="progress"></div>
 
@@ -70,14 +65,10 @@
 
         async function updateNews() {
             try {
-                // API側もキャッシュを避けるためにタイムスタンプを付与
                 const res = await fetch(API_URL + '?t=' + Date.now());
                 const data = await res.json();
-                if (data && data.length > 0) {
-                    newsItems = data;
-                    console.log("News updated");
-                }
-            } catch (e) { console.error("Fetch error:", e); }
+                if (data && data.length > 0) newsItems = data;
+            } catch (e) { console.error(e); }
         }
 
         function render() {
@@ -87,33 +78,22 @@
             const div = document.createElement('div');
             div.className = 'slide';
             
-            // --- 画像検索ワードの動的な決定 ---
-            let query = "nature,calm"; // デフォルト
-            const t = item.title;
-            if (t.match(/大谷|野球|選手|試合|五輪/)) query = "stadium,athlete";
-            else if (t.match(/雨|雪|天気|台風|気象/)) query = "sky,clouds,weather";
-            else if (t.match(/事故|事件|火災|警察/)) query = "night,city,lights";
-            else if (t.match(/宇宙|ロケット|月|星/)) query = "galaxy,starry,sky";
-            else if (t.match(/円|株|経済|市場/)) query = "tokyo,business,graph";
-            else if (t.match(/学校|教育|生徒|子供/)) query = "classroom,library";
-            else if (t.match(/首相|政府|政治|選挙/)) query = "building,parliament";
+            if (item.image) {
+                const img = document.createElement('img');
+                img.src = item.image;
+                // Yahooの画像がブロックされたらUnsplashの風景画像を出す
+                img.onerror = function() {
+                    console.log("Yahoo image blocked, using fallback.");
+                    this.src = "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1920&q=80";
+                };
+                div.appendChild(img);
+            }
 
-            const img = document.createElement('img');
-            // source.unsplash.com を経由せず、sigとqueryでランダム性を確保
-            // URLに乱数を混ぜてキャッシュを強制無効化
-            const randomId = Math.floor(Math.random() * 1000);
-            img.src = `https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1920&q=80&sig=${currentIndex}_${randomId}&query=${query}`;
-            
-            img.onerror = function() {
-                this.src = "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=1920";
-            };
-
-            div.appendChild(img);
             div.innerHTML += `
                 <div class="content-box">
                     <div class="title">${item.title}</div>
                     <div class="excerpt">${item.excerpt}</div>
-                    <div class="meta">NHK NEWS | ${item.time} 更新</div>
+                    <div class="meta" style="margin-top:15px; font-size:1.2rem; color:#ff4444;">Yahoo!ニュース (${item.time})</div>
                 </div>
             `;
             
