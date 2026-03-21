@@ -13,25 +13,33 @@ export default async function handler(req, res) {
     if (!items) return res.status(200).json([]);
     if (!Array.isArray(items)) items = [items];
 
-    const newsData = items.slice(0, 10).map((item) => {
-      // YahooのRSSから画像URLを探す（media:content や enclosure など）
+    const newsData = await Promise.all(items.slice(0, 10).map(async (item) => {
       let imageUrl = "";
-      if (item['media:content'] && item['media:content'].$.url) {
-        imageUrl = item['media:content'].$.url;
-      } else if (item['enclosure'] && item['enclosure'].$.url) {
-        imageUrl = item['enclosure'].$.url;
+      if (item['media:content']) imageUrl = item['media:content'].$.url;
+      else if (item['enclosure']) imageUrl = item['enclosure'].$.url;
+
+      // --- 重要：画像をサーバー側で取得してデータ化する ---
+      let imageData = "";
+      if (imageUrl) {
+        try {
+          const imgRes = await fetch(imageUrl);
+          const buffer = await imgRes.arrayBuffer();
+          const base64 = Buffer.from(buffer).toString('base64');
+          imageData = `data:image/jpeg;base64,${base64}`;
+        } catch (e) {
+          console.error("Image fetch error");
+        }
       }
 
       return {
         title: item.title || '',
         excerpt: item.description || '',
-        image: imageUrl,
+        image: imageData, // URLではなく画像データそのものを渡す
         time: item.pubDate ? new Date(item.pubDate).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--'
       };
-    });
+    }));
 
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cache-Control', 'no-store');
     res.status(200).json(newsData);
   } catch (error) {
     res.status(500).json({ error: 'Failed' });
