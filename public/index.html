@@ -6,12 +6,11 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #001a33; color: #fff; font-family: "Helvetica Neue", Arial, "Hiragino Sans", sans-serif; cursor: none; }
         
-        /* 動く背景グラデーション */
         #bg-canvas {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(125deg, #001a33, #003366, #005588, #001a33);
+            background: linear-gradient(125deg, #001a33, #002a4d, #004080, #001a33);
             background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
+            animation: gradientBG 20s ease infinite;
             z-index: 1;
         }
         @keyframes gradientBG {
@@ -24,54 +23,73 @@
         
         .slide {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            opacity: 0; transition: all 1.2s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex; align-items: center; justify-content: center;
+            /* 変化を滑らかにする設定 */
+            opacity: 0;
+            transform: scale(1.05);
+            transition: opacity 1.8s ease-in-out, transform 1.8s ease-out;
+            visibility: hidden;
+            will-change: opacity, transform; /* ブラウザに事前準備させる */
         }
-        .active { opacity: 1; transform: scale(1); }
+
+        /* アクティブな時の状態 */
+        .slide.active {
+            opacity: 1;
+            transform: scale(1);
+            visibility: visible;
+            z-index: 20;
+        }
 
         .content-box {
-            width: 85%; padding: 60px;
+            width: 80%; padding: 60px;
             background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border-radius: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-radius: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.4);
         }
 
         .title { font-size: 4rem; font-weight: bold; margin-bottom: 30px; line-height: 1.3; color: #fff; border-bottom: 4px solid #00aaff; padding-bottom: 20px; }
-        .excerpt { font-size: 2rem; line-height: 1.6; color: #cbd5e1; }
+        .excerpt { font-size: 2rem; line-height: 1.6; color: #e2e8f0; }
         .meta { margin-top: 30px; font-size: 1.5rem; color: #00aaff; font-weight: bold; text-align: right; }
         
         #ticker {
             position: absolute; bottom: 0; left: 0; width: 100%; height: 80px;
-            background: rgba(0, 0, 0, 0.8); z-index: 30;
+            background: rgba(0, 0, 0, 0.85); z-index: 50;
             overflow: hidden; display: flex; align-items: center;
             border-top: 2px solid #00aaff;
         }
         .ticker-text {
             white-space: nowrap; font-size: 2.2rem; font-weight: bold;
-            padding-left: 100%; animation: scroll 35s linear infinite;
-            color: #fff;
+            padding-left: 100%; animation: scroll 40s linear infinite;
         }
         @keyframes scroll { from { transform: translateX(0); } to { transform: translateX(-100%); } }
     </style>
 </head>
 <body>
     <div id="bg-canvas"></div>
-    <div id="app"></div>
+    <div id="app">
+        <div id="slide1" class="slide"></div>
+        <div id="slide2" class="slide"></div>
+    </div>
     <div id="ticker">
-        <div class="ticker-text">【学校連絡】最新ニュースを放送中。／ 明日の登校時は交通安全に十分気をつけてください。</div>
+        <div class="ticker-text">【学校連絡】明日の登校時は交通安全に十分気をつけてください。／ デジタルサイネージのテスト運用中です。</div>
     </div>
 
     <script>
         const API_URL = '/api/news';
         let newsItems = [];
         let currentIndex = 0;
+        let activeSlideId = 1;
 
         async function init() {
             await updateNews();
-            render();
-            setInterval(render, 10000); 
+            if (newsItems.length > 0) {
+                updateSlideContent('slide1', newsItems[0]);
+                document.getElementById('slide1').classList.add('active');
+                setInterval(nextSlide, 10000); // 10秒ごとに切り替え
+            }
             setInterval(updateNews, 300000); 
         }
 
@@ -83,32 +101,38 @@
             } catch (e) { console.error(e); }
         }
 
-        function render() {
-            if (newsItems.length === 0) return;
-            const app = document.getElementById('app');
-            const item = newsItems[currentIndex];
-            const div = document.createElement('div');
-            div.className = 'slide';
-            
-            div.innerHTML = `
+        function updateSlideContent(id, item) {
+            const el = document.getElementById(id);
+            el.innerHTML = `
                 <div class="content-box">
                     <div class="title">${item.title}</div>
                     <div class="excerpt">${item.excerpt}</div>
                     <div class="meta">NHK NEWS | ${item.time} 更新</div>
                 </div>
             `;
-            
-            app.appendChild(div);
-            setTimeout(() => div.classList.add('active'), 100);
-
-            if (app.children.length > 1) {
-                const old = app.children[0];
-                old.style.transform = "translateY(-20px)";
-                old.classList.remove('active');
-                setTimeout(() => { if(old.parentNode) app.removeChild(old); }, 1500);
-            }
-            currentIndex = (currentIndex + 1) % newsItems.length;
         }
+
+        function nextSlide() {
+            if (newsItems.length === 0) return;
+            
+            currentIndex = (currentIndex + 1) % newsItems.length;
+            const nextSlideId = activeSlideId === 1 ? 2 : 1;
+            const currentEl = document.getElementById(`slide${activeSlideId}`);
+            const nextEl = document.getElementById(`slide${nextSlideId}`);
+
+            // 次のスライドの中身を準備（まだ非表示の状態）
+            updateSlideContent(`slide${nextSlideId}`, newsItems[currentIndex]);
+
+            // アニメーション実行
+            // タイミングをずらしてブラウザの負荷を分散
+            requestAnimationFrame(() => {
+                nextEl.classList.add('active');
+                currentEl.classList.remove('active');
+            });
+
+            activeSlideId = nextSlideId;
+        }
+
         init();
     </script>
 </body>
