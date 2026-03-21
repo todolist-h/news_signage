@@ -24,18 +24,30 @@
         .slide {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; align-items: center; justify-content: center;
+            
+            /* --- アニメーション設定 --- */
             opacity: 0;
-            transform: scale(1.05);
-            transition: opacity 1.8s ease-in-out, transform 1.8s ease-out;
+            transform: scale(1.08) translateY(10px); /* 少し大きく、下に配置しておく */
+            /* 消える時もゆっくりにするために transition を設定 */
+            transition: opacity 2.5s cubic-bezier(0.4, 0, 0.2, 1), 
+                        transform 2.5s cubic-bezier(0.4, 0, 0.2, 1);
             visibility: hidden;
             will-change: opacity, transform;
         }
 
+        /* アクティブ（表示中）の状態 */
         .slide.active {
             opacity: 1;
-            transform: scale(1);
+            transform: scale(1) translateY(0);
             visibility: visible;
             z-index: 20;
+        }
+
+        /* 退出中（消えていく瞬間）の状態を明示的に作る */
+        .slide.leaving {
+            opacity: 0;
+            transform: scale(0.95) translateY(-10px); /* 少し小さく、上に消えていく */
+            z-index: 10;
         }
 
         .content-box {
@@ -48,7 +60,6 @@
             box-shadow: 0 30px 60px rgba(0,0,0,0.4);
         }
 
-        /* ジャンルバッジ */
         .genre-tag {
             display: inline-block;
             background: #00aaff;
@@ -82,7 +93,7 @@
         <div id="slide2" class="slide"></div>
     </div>
     <div id="ticker">
-        <div class="ticker-text">【学校連絡】安心・安全なニュースを配信中。／ 図書室は本日17時まで開館しています。</div>
+        <div class="ticker-text">【学校連絡】安心・安全なニュースを配信中。／ 廊下は静かに右側を歩きましょう。</div>
     </div>
 
     <script>
@@ -96,9 +107,9 @@
             if (newsItems.length > 0) {
                 updateSlideContent('slide1', newsItems[0]);
                 document.getElementById('slide1').classList.add('active');
-                setInterval(nextSlide, 10000); 
+                setInterval(nextSlide, 12000); // 余裕を持って12秒間隔
             }
-            setInterval(updateNews, 600000); // 10分おきに更新
+            setInterval(updateNews, 600000);
         }
 
         async function updateNews() {
@@ -123,19 +134,36 @@
 
         function nextSlide() {
             if (newsItems.length === 0) return;
+            
             currentIndex = (currentIndex + 1) % newsItems.length;
             const nextSlideId = activeSlideId === 1 ? 2 : 1;
             const currentEl = document.getElementById(`slide${activeSlideId}`);
             const nextEl = document.getElementById(`slide${nextSlideId}`);
 
+            // 1. 次のスライドの中身を準備
             updateSlideContent(`slide${nextSlideId}`, newsItems[currentIndex]);
 
+            // 2. クラスの付け替え
             requestAnimationFrame(() => {
-                nextEl.classList.add('active');
+                // 現在のスライドを「退場中」にする
                 currentEl.classList.remove('active');
+                currentEl.classList.add('leaving');
+                
+                // 次のスライドを「入場」させる
+                nextEl.classList.remove('leaving');
+                nextEl.classList.add('active');
             });
+
+            // 3. 次回の切り替えに備えてIDを更新
             activeSlideId = nextSlideId;
+
+            // 4. 数秒後に古いスライドの「退場中」フラグを掃除する
+            setTimeout(() => {
+                const inactiveId = activeSlideId === 1 ? 2 : 1;
+                document.getElementById(`slide${inactiveId}`).classList.remove('leaving');
+            }, 3000);
         }
+
         init();
     </script>
 </body>
