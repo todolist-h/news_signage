@@ -1,32 +1,53 @@
 import fetch from 'node-fetch';
 import xml2js from 'xml2js';
 
-const RSS_URL = 'https://www3.nhk.or.jp/rss/news/cat5.xml';
+// 取得するジャンルのリスト
+const RSS_SOURCES = [
+  { genre: '社会', url: 'https://www3.nhk.or.jp/rss/news/cat1.xml', icon: '🌍' },
+  { genre: '科学・文化', url: 'https://www3.nhk.or.jp/rss/news/cat3.xml', icon: '🧪' },
+  { genre: '政治', url: 'https://www3.nhk.or.jp/rss/news/cat4.xml', icon: '🏛️' },
+  { genre: '経済', url: 'https://www3.nhk.or.jp/rss/news/cat5.xml', icon: '📈' }
+];
+
+// 表示したくないワード（フィルタリング）
+const NG_WORDS = /殺人|死体|遺体|刺殺|強盗|逮捕|容疑|死刑|死亡|遺棄|事故|火災|転落/;
 
 export default async function handler(req, res) {
   try {
-    const response = await fetch(RSS_URL);
-    const xml = await response.text();
-    const parsed = await xml2js.parseStringPromise(xml, { explicitArray: false });
-    
-    let items = parsed.rss.channel.item;
-    if (!items) return res.status(200).json([]);
-    if (!Array.isArray(items)) items = [items];
-
-    const newsData = items.slice(0, 10).map((item) => {
-      return {
-        title: item.title || '',
-        excerpt: item.description 
-          ? item.description.replace(/<[^>]*>?/gm, '').substring(0, 80) + '...'
-          : '',
-        time: item.pubDate 
-          ? new Date(item.pubDate).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) 
-          : '--:--'
-      };
+    const allNewsPromises = RSS_SOURCES.map(async (source) => {
+      try {
+        const response = await fetch(source.url);
+        const xml = await response.text();
+        const parsed = await xml2js.parseStringPromise(xml, { explicitArray: false });
+        let items = parsed.rss.channel.item;
+        if (!items) return [];
+        if (!Array.isArray(items)) items = [items];
+        
+        return items.map(item => ({
+          ...item,
+          genre: source.genre,
+          icon: source.icon
+        }));
+      } catch (e) { return []; }
     });
 
+    const results = await Promise.all(allNewsPromises);
+    let combinedItems = results.flat();
+
+    // フィルタリングと整形
+    const filteredNews = combinedItems
+      .filter(item => !NG_WORDS.test(item.title) && !NG_WORDS.test(item.description)) // NGワード除外
+      .map(item => ({
+        title: item.title,
+        genre: item.genre,
+        icon: item.icon,
+        excerpt: item.description ? item.description.replace(/<[^>]*>?/gm, '').substring(0, 80) + '...' : '',
+        time: item.pubDate ? new Date(item.pubDate).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--'
+      }))
+      .sort(() => Math.random() - 0.5); // ランダムにシャッフル
+
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json(newsData);
+    res.status(200).json(filteredNews.slice(0, 15)); // 上位15件を返す
   } catch (error) {
     res.status(500).json({ error: 'Failed' });
   }
