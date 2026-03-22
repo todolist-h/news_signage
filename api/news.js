@@ -32,12 +32,15 @@ async function fetchFeed(source) {
         title: title,
         description: desc,
         pubDate: item.pubDate,
-        sourceName: source.genre, // ここで具体的な名前を保持
+        sourceName: source.genre,
         icon: source.icon
       };
     });
   } catch (e) { return []; }
 }
+
+// 配列をランダムに並び替える関数
+const shuffle = (array) => array.sort(() => Math.random() - 0.5);
 
 export default async function handler(req, res) {
   try {
@@ -55,15 +58,18 @@ export default async function handler(req, res) {
       time: item.pubDate ? new Date(item.pubDate).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--'
     });
 
-    const oitaNews = oitaRes.flat().filter(filter).map(format);
-    const globalNews = globalRes.flat().filter(filter).map(format);
+    // 大分と全国、それぞれをまず「完全にシャッフル」する
+    const oitaPool = shuffle(oitaRes.flat().filter(filter).map(format));
+    const globalPool = shuffle(globalRes.flat().filter(filter).map(format));
 
     let finalNews = [];
     let oIdx = 0, gIdx = 0;
-    while (finalNews.length < 40 && (oIdx < oitaNews.length || gIdx < globalNews.length)) {
-      if (oitaNews[oIdx]) finalNews.push(oitaNews[oIdx++]);
-      if (oitaNews[oIdx]) finalNews.push(oitaNews[oIdx++]); // 大分多め
-      if (globalNews[gIdx]) finalNews.push(globalNews[gIdx++]);
+
+    // 大分2件、全国1件のペースで混ぜるが、中身は毎回ランダム
+    while (finalNews.length < 50 && (oIdx < oitaPool.length || gIdx < globalPool.length)) {
+      if (oitaPool[oIdx]) finalNews.push(oitaPool[oIdx++]);
+      if (oitaPool[oIdx]) finalNews.push(oitaPool[oIdx++]);
+      if (globalPool[gIdx]) finalNews.push(globalPool[gIdx++]);
     }
 
     res.setHeader('Access-Control-Allow-Origin', '*');
