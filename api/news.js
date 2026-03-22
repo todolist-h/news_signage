@@ -21,31 +21,28 @@ async function fetchFeed(source) {
     const xml = await response.text();
     const parsed = await xml2js.parseStringPromise(xml, { explicitArray: false });
     
+    // YahooやNHKの構造変化に対応
     let items = parsed.rss?.channel?.item || [];
     if (!Array.isArray(items)) items = [items];
     
     return items.map(item => {
-      // タイトルの取得とクリーニング
-      let title = typeof item.title === 'string' ? item.title : (item.title?._ || "");
-      // 末尾の (大分合同新聞) や (OBS大分放送) を除去
-      title = title.replace(/\s*[\(（][^）\)]+[\)）]\s*$/, '').trim();
+      let rawTitle = typeof item.title === 'string' ? item.title : (item.title?._ || "");
+      let rawDesc = typeof item.description === 'string' ? item.description : (item.description?._ || "");
 
-      // 本文の取得（Yahoo!ニュースの特殊なタグにも対応）
-      let desc = "";
-      if (typeof item.description === 'string') desc = item.description;
-      else if (item.description?._) desc = item.description._;
+      // 【修正ポイント】末尾の(大分合同新聞)や(OBS大分放送)などのカッコを確実に消す
+      const cleanTitle = rawTitle.replace(/\s*[\(（][^）\)]+[\)）]\s*$/, '').trim();
       
       return {
-        title: title,
-        description: desc,
+        title: cleanTitle,
+        description: rawDesc,
         pubDate: item.pubDate,
         genre: source.genre,
         icon: source.icon,
-        // すべて「大分現地情報」という名前に統一
-        sourceLabel: source.genre.includes('大分') || source.genre.includes('OBS') ? '大分現地情報' : 'NHK NEWS'
+        sourceName: source.genre.includes('大分') || source.genre.includes('OBS') ? '大分現地情報' : 'NHK NEWS'
       };
     });
   } catch (e) {
+    console.error(`Error fetching ${source.genre}:`, e);
     return [];
   }
 }
@@ -57,28 +54,30 @@ export default async function handler(req, res) {
       Promise.all(SOURCES_GLOBAL.map(fetchFeed))
     ]);
 
-    // フィルタ：タイトルがあること ＆ NGワードを含まないこと
-    const filter = (item) => item.title && !NG_WORDS.test(item.title);
+    const filter = (item) => item.title && !NG_WORDS.test(item.title) && !NG_WORDS.test(item.description);
     
     const format = (item) => ({
       title: item.title,
       genre: item.genre,
       icon: item.icon,
-      source: item.sourceLabel,
-      excerpt: item.description ? item.description.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim().substring(0, 90) + '...' : '詳細はニュースをご確認ください。',
+      source: item.sourceName,
+      excerpt: item.description ? item.description.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim().substring(0, 85) + '...' : '',
       time: item.pubDate ? new Date(item.pubDate).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--'
     });
 
     const oitaNews = oitaResults.flat().filter(filter).map(format);
     const globalNews = globalResults.flat().filter(filter).map(format);
 
-    // 大分ニュースを優先的に交互に混ぜる
+    // 【修正ポイント】大分ニュースが空でないことを確認し、優先的に結合
     let finalNews = [];
+    const totalSlots = 30;
+    
+    // 大分と全国を 2:1 の割合で混ぜる
     let oIdx = 0, gIdx = 0;
-    while (finalNews.length < 40 && (oIdx < oitaNews.length || gIdx < globalNews.length)) {
+    while (finalNews.length < totalSlots && (oIdx < oitaNews.length || gIdx < globalNews.length)) {
       if (oitaNews[oIdx]) finalNews.push(oitaNews[oIdx++]);
-      if (oitaNews[oIdx]) finalNews.push(oitaNews[oIdx++]);
-      if (globalNews[gIdx]) finalNews.push(globalNews[gIdx++]);
+      if (oitaNews[oIdx]) finalNews.push(oitaNews[oIdx++]); // 大分2件目
+      if (globalNews[gIdx]) finalNews.push(globalNews[gIdx++]); // 全国1件
     }
 
     res.setHeader('Access-Control-Allow-Origin', '*');
