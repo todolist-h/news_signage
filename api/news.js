@@ -4,6 +4,8 @@ import xml2js from 'xml2js';
 const SOURCES_OITA = [
   { genre: '大分合同新聞', url: 'https://news.yahoo.co.jp/rss/media/mjikenbo/all.xml', icon: 'fa-solid fa-newspaper' },
   { genre: 'OBS大分放送', url: 'https://news.yahoo.co.jp/rss/media/obsnews/all.xml', icon: 'fa-solid fa-tv' },
+  { genre: 'OAB大分朝日放送', url: 'https://news.yahoo.co.jp/rss/media/oabv/all.xml', icon: 'fa-solid fa-tower-broadcast' },
+  { genre: 'TOSテレビ大分', url: 'https://news.yahoo.co.jp/rss/media/tos/all.xml', icon: 'fa-solid fa-display' },
   { genre: 'NHK大分', url: 'https://www.nhk.or.jp/rss/news/oita.xml', icon: 'fa-solid fa-map-pin' }
 ];
 
@@ -25,6 +27,7 @@ async function fetchFeed(source) {
     
     return items.map(item => {
       let title = typeof item.title === 'string' ? item.title : (item.title?._ || "");
+      // 末尾のカッコ（出典名）をきれいに除去
       title = title.replace(/\s*[\(（][^）\)]+[\)）]\s*$/, '').trim();
       let desc = typeof item.description === 'string' ? item.description : (item.description?._ || "");
       
@@ -39,7 +42,6 @@ async function fetchFeed(source) {
   } catch (e) { return []; }
 }
 
-// 配列をランダムに並び替える関数
 const shuffle = (array) => array.sort(() => Math.random() - 0.5);
 
 export default async function handler(req, res) {
@@ -54,19 +56,19 @@ export default async function handler(req, res) {
       title: item.title,
       source: item.sourceName,
       icon: item.icon,
-      excerpt: item.description ? item.description.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim().substring(0, 90) + '...' : '詳細はニュースをご確認ください。',
+      excerpt: item.description ? item.description.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim().substring(0, 95) + '...' : '詳細はニュースをご確認ください。',
       time: item.pubDate ? new Date(item.pubDate).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--'
     });
 
-    // 大分と全国、それぞれをまず「完全にシャッフル」する
+    // 各プールをシャッフル
     const oitaPool = shuffle(oitaRes.flat().filter(filter).map(format));
     const globalPool = shuffle(globalRes.flat().filter(filter).map(format));
 
     let finalNews = [];
     let oIdx = 0, gIdx = 0;
 
-    // 大分2件、全国1件のペースで混ぜるが、中身は毎回ランダム
-    while (finalNews.length < 50 && (oIdx < oitaPool.length || gIdx < globalPool.length)) {
+    // 大分2件：全国1件のペースで最大60件まで構築
+    while (finalNews.length < 60 && (oIdx < oitaPool.length || gIdx < globalPool.length)) {
       if (oitaPool[oIdx]) finalNews.push(oitaPool[oIdx++]);
       if (oitaPool[oIdx]) finalNews.push(oitaPool[oIdx++]);
       if (globalPool[gIdx]) finalNews.push(globalPool[gIdx++]);
