@@ -3,13 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oita High School Signage</title>
+    <title>Oita Digital Signage</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #001a33; color: #fff; font-family: "Helvetica Neue", Arial, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif; cursor: none; }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #001a33; color: #fff; font-family: "Helvetica Neue", Arial, "Hiragino Sans", "Meiryo", sans-serif; cursor: none; }
         
-        /* 動く背景グラデーション */
         #bg-canvas {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(125deg, #001a33, #002a4d, #004080, #001a33);
@@ -17,11 +15,7 @@
             animation: gradientBG 20s ease infinite;
             z-index: 1;
         }
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
+        @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 
         #app { position: relative; width: 100vw; height: 100vh; z-index: 10; }
         
@@ -29,74 +23,47 @@
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; align-items: center; justify-content: center;
             opacity: 0;
-            transform: scale(1.08) translateY(15px);
-            transition: opacity 2.5s cubic-bezier(0.4, 0, 0.2, 1), 
-                        transform 2.5s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: scale(1.1) translateY(20px);
+            transition: opacity 2.5s cubic-bezier(0.4, 0, 0.2, 1), transform 2.5s cubic-bezier(0.4, 0, 0.2, 1);
             visibility: hidden;
             will-change: opacity, transform;
         }
 
-        .slide.active {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-            visibility: visible;
-            z-index: 20;
-        }
-
-        .slide.leaving {
-            opacity: 0;
-            transform: scale(0.95) translateY(-15px);
-            z-index: 10;
-        }
+        .slide.active { opacity: 1; transform: scale(1) translateY(0); visibility: visible; z-index: 20; }
+        .slide.leaving { opacity: 0; transform: scale(0.95) translateY(-20px); z-index: 10; }
 
         .content-box {
-            width: 80%; max-width: 1200px; padding: 60px;
-            background: rgba(255, 255, 255, 0.07);
-            backdrop-filter: blur(30px);
-            -webkit-backdrop-filter: blur(30px);
-            border-radius: 40px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 40px 80px rgba(0,0,0,0.4);
+            width: 80%; max-width: 1100px; padding: 60px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            border-radius: 45px; border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 40px 100px rgba(0,0,0,0.5);
         }
 
-        .header-meta {
-            display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;
-        }
-
+        .header-meta { display: flex; align-items: center; margin-bottom: 30px; }
         .genre-tag {
             display: inline-flex; align-items: center;
             background: #00aaff; color: #fff;
-            padding: 10px 24px; border-radius: 50px;
-            font-size: 1.5rem; font-weight: bold;
-            box-shadow: 0 5px 15px rgba(0, 170, 255, 0.4);
+            padding: 10px 25px; border-radius: 50px;
+            font-size: 1.6rem; font-weight: bold;
+            box-shadow: 0 8px 20px rgba(0, 170, 255, 0.3);
         }
         .genre-tag i { margin-right: 12px; }
+        .source-label { margin-left: 20px; font-size: 1.3rem; color: rgba(255,255,255,0.6); font-weight: bold; }
 
-        .source-name { font-size: 1.3rem; color: rgba(255,255,255,0.6); font-weight: bold; letter-spacing: 1px; }
-
-        .title { font-size: 4rem; font-weight: bold; margin-bottom: 35px; line-height: 1.35; border-bottom: 5px solid rgba(0, 170, 255, 0.5); padding-bottom: 25px; }
-        .excerpt { font-size: 2.1rem; line-height: 1.6; color: #e2e8f0; margin-bottom: 0; }
-        .meta-time { margin-top: 35px; font-size: 1.5rem; color: #00aaff; text-align: right; font-weight: bold; }
+        .title { font-size: 4.2rem; font-weight: bold; margin-bottom: 35px; line-height: 1.4; border-bottom: 6px solid #00aaff; padding-bottom: 25px; }
+        .excerpt { font-size: 2.2rem; line-height: 1.7; color: #e5e7eb; }
+        .meta-time { margin-top: 40px; font-size: 1.6rem; color: #00aaff; text-align: right; font-weight: bold; }
         
         #ticker {
             position: absolute; bottom: 0; left: 0; width: 100%; height: 85px;
-            background: rgba(0, 0, 0, 0.85); z-index: 50;
-            overflow: hidden; display: flex; align-items: center;
-            border-top: 3px solid #00aaff;
+            background: rgba(0, 0, 0, 0.9); z-index: 50;
+            overflow: hidden; display: flex; align-items: center; border-top: 3px solid #00aaff;
         }
-        .ticker-text {
-            white-space: nowrap; font-size: 2.4rem; font-weight: bold;
-            padding-left: 100%; animation: scroll 45s linear infinite;
-            color: #fff;
-        }
+        .ticker-text { white-space: nowrap; font-size: 2.4rem; font-weight: bold; padding-left: 100%; animation: scroll 40s linear infinite; }
         @keyframes scroll { from { transform: translateX(0); } to { transform: translateX(-100%); } }
 
-        /* 右上の時計 */
-        #clock {
-            position: absolute; top: 30px; right: 40px;
-            font-size: 2.5rem; font-weight: bold; color: rgba(255,255,255,0.8);
-            z-index: 100; text-shadow: 0 0 15px rgba(0,0,0,0.5);
-        }
+        #clock { position: absolute; top: 40px; right: 50px; font-size: 2.8rem; font-weight: bold; color: rgba(255,255,255,0.9); z-index: 100; }
     </style>
 </head>
 <body>
@@ -107,7 +74,7 @@
         <div id="slide2" class="slide"></div>
     </div>
     <div id="ticker">
-        <div class="ticker-text">【学校連絡】大分県内の最新ニュースを配信しています。／ 廊下は静かに歩き、他学年の授業を妨げないようにしましょう。／ 本日の部活動終了時刻は18:30です。</div>
+        <div class="ticker-text">【学校連絡】大分合同新聞・OBS大分放送・NHK大分の最新情報を配信しています。／ 授業中の廊下歩行は静かに行いましょう。／ 明日の天気予報を確認して登校してください。</div>
     </div>
 
     <script>
@@ -119,19 +86,17 @@
         async function init() {
             updateClock();
             setInterval(updateClock, 1000);
-            
             await updateNews();
             if (newsItems.length > 0) {
                 updateSlideContent('slide1', newsItems[0]);
                 document.getElementById('slide1').classList.add('active');
-                setInterval(nextSlide, 12000); 
+                setInterval(nextSlide, 13000); // 13秒ごとに切り替え
             }
-            setInterval(updateNews, 600000); // 10分更新
+            setInterval(updateNews, 300000); 
         }
 
         function updateClock() {
-            const now = new Date();
-            document.getElementById('clock').textContent = now.toLocaleTimeString('ja-JP');
+            document.getElementById('clock').textContent = new Date().toLocaleTimeString('ja-JP');
         }
 
         async function updateNews() {
@@ -139,7 +104,7 @@
                 const res = await fetch(API_URL + '?t=' + Date.now());
                 const data = await res.json();
                 if (data && data.length > 0) newsItems = data;
-            } catch (e) { console.error("News Load Error", e); }
+            } catch (e) { console.error(e); }
         }
 
         function updateSlideContent(id, item) {
@@ -148,7 +113,7 @@
                 <div class="content-box">
                     <div class="header-meta">
                         <div class="genre-tag"><i class="${item.icon}"></i> ${item.genre}</div>
-                        <div class="source-name">${item.source}</div>
+                        <div class="source-label">Local Information</div>
                     </div>
                     <div class="title">${item.title}</div>
                     <div class="excerpt">${item.excerpt}</div>
@@ -159,7 +124,6 @@
 
         function nextSlide() {
             if (newsItems.length === 0) return;
-            
             currentIndex = (currentIndex + 1) % newsItems.length;
             const nextSlideId = activeSlideId === 1 ? 2 : 1;
             const currentEl = document.getElementById(`slide${activeSlideId}`);
@@ -175,13 +139,10 @@
             });
 
             activeSlideId = nextSlideId;
-
             setTimeout(() => {
-                const inactiveId = activeSlideId === 1 ? 2 : 1;
-                document.getElementById(`slide${inactiveId}`).classList.remove('leaving');
+                document.getElementById(activeSlideId === 1 ? 'slide2' : 'slide1').classList.remove('leaving');
             }, 3000);
         }
-
         init();
     </script>
 </body>
