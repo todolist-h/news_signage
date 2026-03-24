@@ -1,45 +1,104 @@
-async function updateSchoolInfo() {
-            try {
-                const res = await fetch(INFO_URL + '?t=' + Date.now());
-                if (!res.ok) return;
-                const rawText = await res.text();
-                const lines = rawText.split(/\r?\n/);
-                
-                // 現在の日付と言語設定に応じた曜日を取得
-                const now = new Date();
-                const todayStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
-                
-                // 「3月24日（火）」のような形式を作成
-                const month = now.getMonth() + 1;
-                const date = now.getDate();
-                const dayOfWeek = ["日", "月", "火", "水", "木", "金", "土"][now.getDay()];
-                const dateLabel = `【${month}月${date}日（${dayOfWeek}）のニュース】`;
+import fetch from 'node-fetch';
+import xml2js from 'xml2js';
 
-                let fixedText = "", todayText = "";
-                lines.forEach(line => {
-                    const t = line.trim();
-                    if (!t) return;
+const SOURCES_OITA = [
+  { genre: '大分合同新聞', url: 'https://news.yahoo.co.jp/rss/media/mjikenbo/all.xml', icon: 'fa-solid fa-newspaper' },
+  { genre: 'OBS大分放送', url: 'https://news.yahoo.co.jp/rss/media/obsnews/all.xml', icon: 'fa-solid fa-tv' },
+  { genre: 'OAB大分朝日放送', url: 'https://news.yahoo.co.jp/rss/media/oabv/all.xml', icon: 'fa-solid fa-tower-broadcast' },
+  { genre: 'TOSテレビ大分', url: 'https://news.yahoo.co.jp/rss/media/tos/all.xml', icon: 'fa-solid fa-display' },
+  { genre: 'NHK大分', url: 'https://www.nhk.or.jp/rss/news/oita.xml', icon: 'fa-solid fa-map-pin' }
+];
 
-                    if (t.startsWith("[固定]")) {
-                        fixedText = t.replace("[固定]", "【お知らせ】");
-                    } else {
-                        // info.txt内の [2026/03/24] 形式をチェック
-                        const m = t.match(/^\[(\d{4}\/\d{2}\/\d{2})\]/);
-                        if (m && m[1] === todayStr) {
-                            // 一致したら、動的に作った日付ラベルに置き換え
-                            todayText = t.replace(m[0], dateLabel);
-                        }
-                    }
-                });
+const SOURCES_GLOBAL = [
+  { genre: '科学・文化 / NHK', url: 'https://www3.nhk.or.jp/rss/news/cat3.xml', icon: 'fa-solid fa-flask' },
+  { genre: '政治 / NHK', url: 'https://www3.nhk.or.jp/rss/news/cat4.xml', icon: 'fa-solid fa-landmark' },
+  { genre: '経済 / NHK', url: 'https://www3.nhk.or.jp/rss/news/cat5.xml', icon: 'fa-solid fa-chart-line' }
+];
 
-                // テキストの合成（本日分がある場合は先に、ない場合は固定のみ）
-                const contentEl = document.getElementById('ticker-content');
-                if (todayText) {
-                    contentEl.textContent = `${todayText}　／　${fixedText}`;
-                } else {
-                    contentEl.textContent = fixedText || "【連絡】現在、特別な連絡事項はありません。";
-                }
-            } catch (e) {
-                console.error("校内ニュースの読み込み失敗", e);
-            }
-        }
+const NG_WORDS = /殺人|死体|遺体|刺殺|強盗|逮捕|容疑|死刑|死亡|遺棄|事故|火災|転落|重傷|重体|ひき逃げ/;
+
+async function fetchFeed(source) {
+  try {
+    // タイムアウト設定（5秒以上かかるサイトは飛ばす）
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(source.url, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    
+    const xml = await response.text();
+    const parsed = await xml2js.parseStringPromise(xml, { explicitArray: false });
+    
+    let items = parsed.rss?.channel?.item || [];
+    if (!Array.isArray(items)) items = [items];
+    
+    return items.map(item => {
+      let title = typeof item.title === 'string' ? item.title : (item.title?._ || "");
+      title = title.replace(/\s*[\(（][^）\)]+[\)）]\s*$/, '').trim();
+      let desc = typeof item.description === 'string' ? item.description : (item.description?._ || "");
+      
+      return {
+        title: title,
+        description: desc,
+        pubDate: item.pubDate,
+        sourceName: source.genre,
+        icon: source.icon
+      };
+    });
+  } catch (e) {
+    console.error(`Fetch failed for ${source.genre}:`, e.message);
+    return []; // 失敗したソースは空配列を返して、他のソースを活かす
+  }
+}
+
+const shuffle = (array) => array.sort(() => Math.random() - 0.5);
+
+export default async function handler(req, res) {
+  try {
+    const [oitaRes, globalRes] = await Promise.all([
+      Promise.all(SOURCES_OITA.map(fetchFeed)),
+      Promise.all(SOURCES_GLOBAL.map(fetchFeed))
+    ]);
+
+    const filter = (item) => item.title && !NG_WORDS.test(item.title);
+    const format = (item) => ({
+      title: item.title,
+      source: item.sourceName,
+      icon: item.icon,
+      excerpt: item.description ? item.description.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim().substring(0, 95) + '...' : '詳細はニュースをご確認ください。',
+      time: item.pubDate ? new Date(item.pubDate).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--'
+    });
+
+    const oitaPool = shuffle(oitaRes.flat().filter(filter).map(format));
+    const globalPool = shuffle(globalRes.flat().filter(filter).map(format));
+
+    // もし両方空だった場合のフォールバック
+    if (oitaPool.length === 0 && globalPool.length === 0) {
+      return res.status(200).json([{
+        title: "ニュースを読み込み中です",
+        source: "システム",
+        icon: "fa-solid fa-info-circle",
+        excerpt: "しばらくお待ちいただくか、ページを更新してください。",
+        time: "--:--"
+      }]);
+    }
+
+    let finalNews = [];
+    let oIdx = 0, gIdx = 0;
+
+    while (finalNews.length < 60 && (oIdx < oitaPool.length || gIdx < globalPool.length)) {
+      if (oitaPool[oIdx]) finalNews.push(oitaPool[oIdx++]);
+      if (oitaPool[oIdx]) finalNews.push(oitaPool[oIdx++]);
+      if (globalPool[gIdx]) finalNews.push(globalPool[gIdx++]);
+    }
+
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(200).json(finalNews);
+  } catch (error) {
+    console.error("Critical API Error:", error);
+    res.status(500).json({ error: 'Internal Server Error', message: error.message });
+  }
+}
