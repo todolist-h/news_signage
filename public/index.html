@@ -1,209 +1,233 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <title>Oita School Sunshine Signage</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #e0f2fe; color: #1e293b; font-family: "Helvetica Neue", Arial, "Hiragino Sans", "Meiryo", sans-serif; cursor: none; }
-        
-        /* 背景グラデーションアニメーション */
-        #bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #f0f9ff, #bae6fd, #7dd3fc); background-size: 400% 400%; animation: gradientBG 15s ease infinite; z-index: 1; }
-        @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>School Dashboard & ToDo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/all.min.css">
+  <style>
+    :root {
+      --primary-color: #2c3e50;
+      --accent-color: #3498db;
+      --bg-color: #f4f7f6;
+      --card-bg: #ffffff;
+      --text-color: #333;
+    }
 
-        #app { position: relative; width: 100vw; height: 100vh; z-index: 10; }
-        
-        /* スライド切り替えアニメーション（8秒に最適化） */
-        .slide {
-            position: absolute; width: 100%; height: 100%;
-            display: flex; align-items: center; justify-content: center;
-            opacity: 0;
-            transform: translate3d(0, 15px, 0);
-            transition: opacity 1.2s ease-in-out, transform 1.2s ease-out;
-            visibility: hidden;
-            will-change: opacity, transform;
-        }
-        .slide.active { opacity: 1; transform: translate3d(0, 0, 0); visibility: visible; z-index: 20; }
-        .slide.leaving { opacity: 0; transform: translate3d(0, -15px, 0); z-index: 10; }
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
 
-        /* メインコンテンツボックス（すりガラス風） */
-        .content-box {
-            width: 80%; max-width: 1050px; padding: 45px 65px;
-            background: rgba(255, 255, 255, 0.75);
-            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-            border-radius: 40px; border: 1px solid rgba(255, 255, 255, 0.4);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.05);
-        }
+    /* ニュースセクション（10秒切り替え） */
+    #news-ticker {
+      background: var(--primary-color);
+      color: white;
+      padding: 10px 20px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
 
-        .header-meta { display: flex; align-items: center; margin-bottom: 20px; }
-        .source-tag { display: inline-flex; align-items: center; color: #fff; padding: 8px 22px; border-radius: 50px; font-size: 1.4rem; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .source-tag i { margin-right: 10px; }
+    .news-label {
+      background: #e74c3c;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      margin-right: 15px;
+      z-index: 10;
+    }
 
-        .title { font-size: 3.6rem; font-weight: 800; margin-bottom: 25px; line-height: 1.4; color: #0f172a; padding-bottom: 20px; border-bottom: 6px solid #cbd5e1; transition: border-color 0.5s ease; }
-        .excerpt { font-size: 1.9rem; line-height: 1.7; color: #334155; }
-        .meta-footer { display: flex; justify-content: flex-end; margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(0,0,0,0.05); }
-        .meta-time { font-size: 1.4rem; color: #64748b; font-weight: bold; }
+    .news-item {
+      position: absolute;
+      left: 100px;
+      opacity: 0;
+      /* ニュースの切り替えを10秒に設定 */
+      animation: display-news 10s infinite;
+    }
 
-        /* 下部テロップエリア */
-        #ticker-container { position: absolute; bottom: 0; left: 0; width: 100%; z-index: 50; }
-        #progress-bar { width: 0%; height: 6px; background: #f59e0b; transition: width 0.1s linear, background-color 0.5s ease; }
-        #ticker { height: 75px; background: #0f172a; overflow: hidden; display: flex; align-items: center; }
-        .ticker-text { color: #f8fafc; white-space: nowrap; font-size: 2.2rem; font-weight: bold; padding-left: 100%; animation: scroll 50s linear infinite; }
-        @keyframes scroll { from { transform: translateX(0); } to { transform: translateX(-100%); } }
-        
-        #clock { position: absolute; top: 35px; right: 50px; font-size: 2.4rem; font-weight: bold; color: #334155; z-index: 100; font-variant-numeric: tabular-nums; }
-    </style>
+    /* 複数ニュースがある場合の遅延設定（例） */
+    .news-item:nth-child(2) { animation-delay: 0s; }
+    .news-item:nth-child(3) { animation-delay: 10s; }
+
+    @keyframes display-news {
+      0% { opacity: 0; transform: translateY(20px); }
+      5% { opacity: 1; transform: translateY(0); }
+      95% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-20px); }
+    }
+
+    /* メインコンテンツエリア */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      gap: 20px;
+      padding: 20px;
+      overflow: hidden;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ToDoリスト関連 */
+    .todo-section { overflow-y: auto; }
+    .todo-item {
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      transition: background 0.3s;
+    }
+    .todo-item.starred { background: #fffdf0; }
+    .todo-item.urgent { border-left: 5px solid #e74c3c; }
+
+    .star-btn {
+      color: #ccc;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    .star-btn.active { color: #f1c40f; }
+
+    /* 校内連絡（滑らかなテロップ） */
+    #school-announcement {
+      background: #34495e;
+      color: white;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      white-space: nowrap;
+      position: relative;
+    }
+
+    .announcement-title {
+      background: #2ecc71;
+      padding: 0 20px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      z-index: 10;
+      font-weight: bold;
+    }
+
+    .telop-container {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .telop-content {
+      display: inline-block;
+      padding-left: 100%;
+      font-size: 1.2rem;
+      /* 滑らかな動きを実現するための設定 */
+      animation: telop-move 25s linear infinite;
+      will-change: transform;
+    }
+
+    @keyframes telop-move {
+      from { transform: translateX(0); }
+      to { transform: translateX(-100%); }
+    }
+
+    /* ログイン・入力フォーム */
+    .input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    input[type="text"], input[type="date"] {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+    }
+
+    .btn {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: var(--accent-color);
+      color: white;
+    }
+
+    [v-cloak] { display: none; }
+  </style>
 </head>
 <body>
-    <div id="bg-canvas"></div>
-    <div id="clock">00:00:00</div>
-    
-    <div id="app">
-        <div id="slide1" class="slide"></div>
-        <div id="slide2" class="slide"></div>
-    </div>
 
-    <div id="ticker-container">
-        <div id="progress-bar"></div>
-        <div id="ticker">
-            <div id="ticker-content" class="ticker-text">情報を読み込み中...</div>
+<div id="app" v-cloak>
+  <header id="news-ticker">
+    <span class="news-label">NEWS</span>
+    <div class="news-item">本日の時間割変更：3限の数学は自習になります。</div>
+    </header>
+
+  <main>
+    <section class="card todo-section">
+      <h2><i class="fas fa-list-check"></i> マイタスク</h2>
+      
+      <div class="input-group">
+        <input type="text" v-model="newTodo" placeholder="新しいタスクを入力..." @keyup.enter="doAdd">
+        <input type="date" v-model="newDate">
+        <button class="btn" @click="doAdd">追加</button>
+      </div>
+
+      <div class="todo-list">
+        <div v-for="item in activeTodos" :key="item.id" 
+             :class="['todo-item', { starred: item.isStarred, urgent: isUrgent(item.dueDate) }]">
+          <i class="fa-star star-btn" :class="item.isStarred ? 'fas active' : 'far'" @click="doToggleStar(item)"></i>
+          <div style="flex:1">
+            <div style="font-weight:bold">{{ item.comment }}</div>
+            <small v-if="item.dueDate"><i class="far fa-calendar-alt"></i> 期限: {{ item.dueDate }}</small>
+          </div>
+          <button @click="doChangeState(item)" class="btn" style="background:#2ecc71">完了</button>
         </div>
+      </div>
+    </section>
+
+    <aside class="card">
+      <div v-if="!user">
+        <button class="btn" @click="login" style="width:100%"><i class="fab fa-google"></i> Googleでログイン</button>
+      </div>
+      <div v-else>
+        <p>ようこそ、{{ user.displayName }} さん</p>
+        <button class="btn" @click="logout" style="background:#95a5a6; width:100%">ログアウト</button>
+      </div>
+      <hr>
+      <h3>設定</h3>
+      <label><input type="checkbox" v-model="notificationEnabled" @change="toggleNotification"> 通知を有効にする</label>
+    </aside>
+  </main>
+
+  <footer id="school-announcement">
+    <div class="announcement-title">校内連絡</div>
+    <div class="telop-container">
+      <div class="telop-content">
+        【連絡】明日の避難訓練は雨天のため延期となりました。　【図書室】新着図書が入荷しました！ぜひ放課後に立ち寄ってください。　【美化委員会】清掃用具の点検を行います。
+      </div>
     </div>
+  </footer>
+</div>
 
-    <script>
-        const API_URL = '/api/news';
-        const INFO_URL = '/info.txt';
-        const SLIDE_DURATION = 8000; // 8秒サイクル
-        let newsItems = [];
-        let currentIndex = 0;
-        let activeSlideId = 1;
-        let progressInterval;
-        let startTime;
-
-        async function init() {
-            updateClock(); setInterval(updateClock, 1000);
-            await updateNews();
-            await updateSchoolInfo();
-            if (newsItems.length > 0) {
-                updateSlideContent('slide1', newsItems[0]);
-                document.getElementById('slide1').classList.add('active');
-                startProgress();
-            }
-            // 5分ごとにニュースと校内情報をリフレッシュ
-            setInterval(async () => {
-                await updateNews();
-                await updateSchoolInfo();
-            }, 300000); 
-        }
-
-        function updateClock() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('ja-JP'); }
-
-        async function updateNews() {
-            try {
-                const res = await fetch(API_URL + '?t=' + Date.now());
-                const data = await res.json();
-                if (data && data.length > 0) newsItems = data;
-            } catch (e) { console.error("ニュース取得失敗", e); }
-        }
-
-        async function updateSchoolInfo() {
-            try {
-                const res = await fetch(INFO_URL + '?t=' + Date.now());
-                if (!res.ok) return;
-                const rawText = await res.text();
-                const lines = rawText.split(/\r?\n/);
-                
-                const now = new Date();
-                const todayStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
-                
-                // 「【3月24日（火）】」形式のラベル作成
-                const month = now.getMonth() + 1;
-                const date = now.getDate();
-                const dayOfWeek = ["日", "月", "火", "水", "木", "金", "土"][now.getDay()];
-                const dateLabel = `【${month}月${date}日（${dayOfWeek}）】`;
-
-                let fixedText = "", todayText = "";
-                lines.forEach(line => {
-                    const t = line.trim();
-                    if (!t) return;
-                    if (t.startsWith("[固定]")) {
-                        fixedText = t.replace("[固定]", "【お知らせ】");
-                    } else {
-                        const m = t.match(/^\[(\d{4}\/\d{2}\/\d{2})\]/);
-                        if (m && m[1] === todayStr) {
-                            todayText = t.replace(m[0], dateLabel);
-                        }
-                    }
-                });
-
-                const contentEl = document.getElementById('ticker-content');
-                if (todayText) {
-                    contentEl.textContent = `${todayText}　／　${fixedText}`;
-                } else {
-                    contentEl.textContent = fixedText || "【連絡】現在、特別な連絡事項はありません。";
-                }
-            } catch (e) { console.error("校内ニュース読み込み失敗", e); }
-        }
-
-        function updateSlideContent(id, item) {
-            const el = document.getElementById(id);
-            // 大分系ならオレンジ、それ以外は青
-            const isLocal = item.source.includes('大分') || item.source.includes('OBS') || item.source.includes('OAB') || item.source.includes('TOS');
-            const accentColor = isLocal ? '#f59e0b' : '#3b82f6';
-            
-            // プログレスバーの色も連動
-            document.getElementById('progress-bar').style.backgroundColor = accentColor;
-            
-            el.innerHTML = `
-                <div class="content-box">
-                    <div class="header-meta">
-                        <div class="source-tag" style="background: ${accentColor}">
-                            <i class="${item.icon}"></i> ${item.source}
-                        </div>
-                    </div>
-                    <div class="title" style="border-bottom-color: ${accentColor}">${item.title}</div>
-                    <div class="excerpt">${item.excerpt}</div>
-                    <div class="meta-footer">
-                        <div class="meta-time">${item.time} 更新</div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function startProgress() {
-            clearInterval(progressInterval);
-            startTime = Date.now();
-            progressInterval = setInterval(() => {
-                const elapsed = Date.now() - startTime;
-                const pct = Math.min((elapsed / SLIDE_DURATION) * 100, 100);
-                document.getElementById('progress-bar').style.width = pct + '%';
-                if (elapsed >= SLIDE_DURATION) nextSlide();
-            }, 100);
-        }
-
-        function nextSlide() {
-            if (newsItems.length === 0) return;
-            currentIndex = (currentIndex + 1) % newsItems.length;
-            const nextSlideId = activeSlideId === 1 ? 2 : 1;
-            const currentEl = document.getElementById(`slide${activeSlideId}`);
-            const nextEl = document.getElementById(`slide${nextSlideId}`);
-
-            updateSlideContent(`slide${nextSlideId}`, newsItems[currentIndex]);
-
-            requestAnimationFrame(() => {
-                currentEl.classList.replace('active', 'leaving');
-                nextEl.classList.add('active');
-            });
-
-            activeSlideId = nextSlideId;
-            setTimeout(() => {
-                const inactiveId = activeSlideId === 1 ? 2 : 1;
-                document.getElementById(`slide${inactiveId}`).classList.remove('leaving');
-            }, 1500);
-
-            startProgress();
-        }
-        init();
-    </script>
-</body>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+<script src="js/main.js"></script> </body>
 </html>
