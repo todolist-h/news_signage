@@ -1,168 +1,45 @@
-const db = firebase.firestore();
+async function updateSchoolInfo() {
+            try {
+                const res = await fetch(INFO_URL + '?t=' + Date.now());
+                if (!res.ok) return;
+                const rawText = await res.text();
+                const lines = rawText.split(/\r?\n/);
+                
+                // 現在の日付と言語設定に応じた曜日を取得
+                const now = new Date();
+                const todayStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
+                
+                // 「3月24日（火）」のような形式を作成
+                const month = now.getMonth() + 1;
+                const date = now.getDate();
+                const dayOfWeek = ["日", "月", "火", "水", "木", "金", "土"][now.getDay()];
+                const dateLabel = `【${month}月${date}日（${dayOfWeek}）のニュース】`;
 
-new Vue({
-  el: '#app',
-  data: {
-    todos: [],
-    newTodo: '',
-    newDate: '',
-    user: null,
-    isMenuOpen: false,
-    showTerms: false,
-    
-    // 設定関連
-    notificationEnabled: localStorage.getItem('notify') === 'true',
-    effectEnabled: localStorage.getItem('effect') !== 'false',
-    
-    // 編集・モード管理用データ
-    isEditMode: false,
-    editingId: null,
-    editComment: '',
-    editDate: ''
-  },
-  computed: {
-    activeTodos() {
-      const getDueDate = (item) => {
-        if (!item.dueDate || item.dueDate === "") return 9999999999999;
-        const d = new Date(item.dueDate).getTime();
-        return isNaN(d) ? 9999999999999 : d;
-      };
+                let fixedText = "", todayText = "";
+                lines.forEach(line => {
+                    const t = line.trim();
+                    if (!t) return;
 
-      return [...this.todos]
-        .filter(item => item.state !== '完了')
-        .sort((a, b) => {
-          if (a.isStarred !== b.isStarred) {
-            return a.isStarred ? -1 : 1;
-          }
-          return getDueDate(a) - getDueDate(b);
-        });
-    },
-    archivedTodos() {
-      return [...this.todos]
-        .filter(item => item.state === '完了')
-        .sort((a, b) => {
-          const dateA = (a.dueDate && a.dueDate !== "") ? new Date(a.dueDate).getTime() : 0;
-          const dateB = (b.dueDate && b.dueDate !== "") ? new Date(b.dueDate).getTime() : 0;
-          return dateB - dateA;
-        });
-    }
-  },
-  
-  methods: {
-    login() {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      firebase.auth().signInWithPopup(provider);
-    },
-    logout() {
-      firebase.auth().signOut();
-    },
-    isUrgent(dueDate) {
-      if (!dueDate || dueDate === "") return false;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const targetDate = new Date(dueDate);
-      targetDate.setHours(0, 0, 0, 0);
-      return targetDate.getTime() <= today.getTime();
-    },
-    toggleNotification() {
-      localStorage.setItem('notify', this.notificationEnabled);
-      if (this.notificationEnabled && Notification.permission !== 'granted') {
-        Notification.requestPermission();
-      }
-    },
-    toggleEffect() {
-      localStorage.setItem('effect', this.effectEnabled);
-    },
-    toggleEditMode() {
-      if (!this.isEditMode) {
-        this.cancelEdit();
-      }
-    },
-    checkDeadlines() {
-      if (!this.notificationEnabled) return;
-      const todayStr = new Date().toISOString().split('T')[0];
-      const urgentTasks = this.todos.filter(t => t.state !== '完了' && t.dueDate === todayStr);
+                    if (t.startsWith("[固定]")) {
+                        fixedText = t.replace("[固定]", "【お知らせ】");
+                    } else {
+                        // info.txt内の [2026/03/24] 形式をチェック
+                        const m = t.match(/^\[(\d{4}\/\d{2}\/\d{2})\]/);
+                        if (m && m[1] === todayStr) {
+                            // 一致したら、動的に作った日付ラベルに置き換え
+                            todayText = t.replace(m[0], dateLabel);
+                        }
+                    }
+                });
 
-      if (urgentTasks.length > 0 && Notification.permission === 'granted') {
-        const taskList = urgentTasks.map(t => `・${t.comment}`).join('\n');
-        new Notification("今日のToDo", {
-          body: `期限のタスクが ${urgentTasks.length} 件あります！\n\n${taskList}`
-        });
-      }
-    },
-    doAdd() {
-      if (!this.user) {
-        alert('タスクを追加するには、Googleアカウントでログインしてください。');
-        return;
-      }
-      if (!this.newTodo) {
-        alert('タスクの内容を入力してください。');
-        return;
-      }
-      
-      db.collection('todos').add({
-        comment: this.newTodo,
-        dueDate: this.newDate || null,
-        state: '作業中',
-        isStarred: false,
-        uid: this.user.uid,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      this.newTodo = '';
-      this.newDate = '';
-    },
-    doRemove(item) {
-      if (confirm('本当に削除しますか？')) {
-        db.collection('todos').doc(item.id).delete();
-      }
-    },
-    doChangeState(item) {
-      const newState = item.state === '作業中' ? '完了' : '作業中';
-      if (newState === '完了' && this.effectEnabled) this.runConfetti();
-      db.collection('todos').doc(item.id).update({ state: newState });
-    },
-    doToggleStar(item) {
-      db.collection('todos').doc(item.id).update({ isStarred: !item.isStarred });
-    },
-    startEdit(item) {
-      this.editingId = item.id;
-      this.editComment = item.comment;
-      this.editDate = item.dueDate;
-    },
-    cancelEdit() {
-      this.editingId = null;
-      this.editComment = '';
-      this.editDate = '';
-    },
-    doUpdate(item) {
-      if (!this.editComment) return;
-      db.collection('todos').doc(item.id).update({
-        comment: this.editComment,
-        dueDate: this.editDate || null
-      }).then(() => this.cancelEdit());
-    },
-    runConfetti() {
-      if (typeof confetti === 'function') {
-        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-      }
-    }
-  },
-  created() {
-    firebase.auth().onAuthStateChanged(user => {
-      this.user = user;
-      if (user) {
-        db.collection('todos').where('uid', '==', user.uid)
-          .onSnapshot(snapshot => {
-            this.todos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            this.checkDeadlines();
-          });
-      } else {
-        this.todos = [];
-      }
-    });
-    if (!localStorage.getItem('hasSeenTerms')) {
-      this.showTerms = true;
-      localStorage.setItem('hasSeenTerms', 'true');
-    }
-  }
-});
+                // テキストの合成（本日分がある場合は先に、ない場合は固定のみ）
+                const contentEl = document.getElementById('ticker-content');
+                if (todayText) {
+                    contentEl.textContent = `${todayText}　／　${fixedText}`;
+                } else {
+                    contentEl.textContent = fixedText || "【連絡】現在、特別な連絡事項はありません。";
+                }
+            } catch (e) {
+                console.error("校内ニュースの読み込み失敗", e);
+            }
+        }
