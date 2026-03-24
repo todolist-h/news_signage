@@ -6,17 +6,37 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #e0f2fe; color: #1e293b; font-family: "Helvetica Neue", Arial, "Hiragino Sans", "Meiryo", sans-serif; cursor: none; }
+        
+        /* 背景グラデーションアニメーション */
         #bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #f0f9ff, #bae6fd, #7dd3fc); background-size: 400% 400%; animation: gradientBG 15s ease infinite; z-index: 1; }
         @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 
         #app { position: relative; width: 100vw; height: 100vh; z-index: 10; }
-        .slide { position: absolute; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; opacity: 0; transform: translate3d(0, 15px, 0); transition: opacity 1.2s ease-in-out, transform 1.2s ease-out; visibility: hidden; will-change: opacity, transform; }
+        
+        /* スライド切り替えアニメーション（8秒に最適化） */
+        .slide {
+            position: absolute; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0;
+            transform: translate3d(0, 15px, 0);
+            transition: opacity 1.2s ease-in-out, transform 1.2s ease-out;
+            visibility: hidden;
+            will-change: opacity, transform;
+        }
         .slide.active { opacity: 1; transform: translate3d(0, 0, 0); visibility: visible; z-index: 20; }
         .slide.leaving { opacity: 0; transform: translate3d(0, -15px, 0); z-index: 10; }
 
-        .content-box { width: 80%; max-width: 1050px; padding: 45px 65px; background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border-radius: 40px; border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 20px 40px rgba(0,0,0,0.05); }
+        /* メインコンテンツボックス（すりガラス風） */
+        .content-box {
+            width: 80%; max-width: 1050px; padding: 45px 65px;
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border-radius: 40px; border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+        }
+
         .header-meta { display: flex; align-items: center; margin-bottom: 20px; }
-        .source-tag { display: inline-flex; align-items: center; color: #fff; padding: 8px 22px; border-radius: 50px; font-size: 1.4rem; font-weight: bold; }
+        .source-tag { display: inline-flex; align-items: center; color: #fff; padding: 8px 22px; border-radius: 50px; font-size: 1.4rem; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .source-tag i { margin-right: 10px; }
 
         .title { font-size: 3.6rem; font-weight: 800; margin-bottom: 25px; line-height: 1.4; color: #0f172a; padding-bottom: 20px; border-bottom: 6px solid #cbd5e1; transition: border-color 0.5s ease; }
@@ -24,27 +44,36 @@
         .meta-footer { display: flex; justify-content: flex-end; margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(0,0,0,0.05); }
         .meta-time { font-size: 1.4rem; color: #64748b; font-weight: bold; }
 
+        /* 下部テロップエリア */
         #ticker-container { position: absolute; bottom: 0; left: 0; width: 100%; z-index: 50; }
         #progress-bar { width: 0%; height: 6px; background: #f59e0b; transition: width 0.1s linear, background-color 0.5s ease; }
         #ticker { height: 75px; background: #0f172a; overflow: hidden; display: flex; align-items: center; }
         .ticker-text { color: #f8fafc; white-space: nowrap; font-size: 2.2rem; font-weight: bold; padding-left: 100%; animation: scroll 50s linear infinite; }
         @keyframes scroll { from { transform: translateX(0); } to { transform: translateX(-100%); } }
-        #clock { position: absolute; top: 35px; right: 50px; font-size: 2.4rem; font-weight: bold; color: #334155; z-index: 100; }
+        
+        #clock { position: absolute; top: 35px; right: 50px; font-size: 2.4rem; font-weight: bold; color: #334155; z-index: 100; font-variant-numeric: tabular-nums; }
     </style>
 </head>
 <body>
     <div id="bg-canvas"></div>
     <div id="clock">00:00:00</div>
-    <div id="app"><div id="slide1" class="slide"></div><div id="slide2" class="slide"></div></div>
+    
+    <div id="app">
+        <div id="slide1" class="slide"></div>
+        <div id="slide2" class="slide"></div>
+    </div>
+
     <div id="ticker-container">
         <div id="progress-bar"></div>
-        <div id="ticker"><div id="ticker-content" class="ticker-text">情報を読み込み中...</div></div>
+        <div id="ticker">
+            <div id="ticker-content" class="ticker-text">情報を読み込み中...</div>
+        </div>
     </div>
 
     <script>
         const API_URL = '/api/news';
         const INFO_URL = '/info.txt';
-        const SLIDE_DURATION = 8000;
+        const SLIDE_DURATION = 8000; // 8秒サイクル
         let newsItems = [];
         let currentIndex = 0;
         let activeSlideId = 1;
@@ -60,7 +89,11 @@
                 document.getElementById('slide1').classList.add('active');
                 startProgress();
             }
-            setInterval(async () => { await updateNews(); await updateSchoolInfo(); }, 300000); 
+            // 5分ごとにニュースと校内情報をリフレッシュ
+            setInterval(async () => {
+                await updateNews();
+                await updateSchoolInfo();
+            }, 300000); 
         }
 
         function updateClock() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('ja-JP'); }
@@ -70,7 +103,7 @@
                 const res = await fetch(API_URL + '?t=' + Date.now());
                 const data = await res.json();
                 if (data && data.length > 0) newsItems = data;
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("ニュース取得失敗", e); }
         }
 
         async function updateSchoolInfo() {
@@ -79,29 +112,62 @@
                 if (!res.ok) return;
                 const rawText = await res.text();
                 const lines = rawText.split(/\r?\n/);
+                
                 const now = new Date();
                 const todayStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
                 
+                // 「【3月24日（火）】」形式のラベル作成
+                const month = now.getMonth() + 1;
+                const date = now.getDate();
+                const dayOfWeek = ["日", "月", "火", "水", "木", "金", "土"][now.getDay()];
+                const dateLabel = `【${month}月${date}日（${dayOfWeek}）】`;
+
                 let fixedText = "", todayText = "";
                 lines.forEach(line => {
                     const t = line.trim();
                     if (!t) return;
-                    if (t.startsWith("[固定]")) fixedText = t.replace("[固定]", "【お知らせ】");
-                    else {
+                    if (t.startsWith("[固定]")) {
+                        fixedText = t.replace("[固定]", "【お知らせ】");
+                    } else {
                         const m = t.match(/^\[(\d{4}\/\d{2}\/\d{2})\]/);
-                        if (m && m[1] === todayStr) todayText = t.replace(m[0], "【本日限定】");
+                        if (m && m[1] === todayStr) {
+                            todayText = t.replace(m[0], dateLabel);
+                        }
                     }
                 });
-                document.getElementById('ticker-content').textContent = todayText ? `${todayText}　／　${fixedText}` : (fixedText || "【連絡】現在、特別な連絡事項はありません。");
-            } catch (e) { console.error(e); }
+
+                const contentEl = document.getElementById('ticker-content');
+                if (todayText) {
+                    contentEl.textContent = `${todayText}　／　${fixedText}`;
+                } else {
+                    contentEl.textContent = fixedText || "【連絡】現在、特別な連絡事項はありません。";
+                }
+            } catch (e) { console.error("校内ニュース読み込み失敗", e); }
         }
 
         function updateSlideContent(id, item) {
             const el = document.getElementById(id);
+            // 大分系ならオレンジ、それ以外は青
             const isLocal = item.source.includes('大分') || item.source.includes('OBS') || item.source.includes('OAB') || item.source.includes('TOS');
             const accentColor = isLocal ? '#f59e0b' : '#3b82f6';
+            
+            // プログレスバーの色も連動
             document.getElementById('progress-bar').style.backgroundColor = accentColor;
-            el.innerHTML = `<div class="content-box"><div class="header-meta"><div class="source-tag" style="background:${accentColor}"><i class="${item.icon}"></i> ${item.source}</div></div><div class="title" style="border-bottom-color:${accentColor}">${item.title}</div><div class="excerpt">${item.excerpt}</div><div class="meta-footer"><div class="meta-time">${item.time} 更新</div></div></div>`;
+            
+            el.innerHTML = `
+                <div class="content-box">
+                    <div class="header-meta">
+                        <div class="source-tag" style="background: ${accentColor}">
+                            <i class="${item.icon}"></i> ${item.source}
+                        </div>
+                    </div>
+                    <div class="title" style="border-bottom-color: ${accentColor}">${item.title}</div>
+                    <div class="excerpt">${item.excerpt}</div>
+                    <div class="meta-footer">
+                        <div class="meta-time">${item.time} 更新</div>
+                    </div>
+                </div>
+            `;
         }
 
         function startProgress() {
@@ -121,13 +187,20 @@
             const nextSlideId = activeSlideId === 1 ? 2 : 1;
             const currentEl = document.getElementById(`slide${activeSlideId}`);
             const nextEl = document.getElementById(`slide${nextSlideId}`);
+
             updateSlideContent(`slide${nextSlideId}`, newsItems[currentIndex]);
+
             requestAnimationFrame(() => {
                 currentEl.classList.replace('active', 'leaving');
                 nextEl.classList.add('active');
             });
+
             activeSlideId = nextSlideId;
-            setTimeout(() => { document.getElementById(activeSlideId === 1 ? 'slide2' : 'slide1').classList.remove('leaving'); }, 1500);
+            setTimeout(() => {
+                const inactiveId = activeSlideId === 1 ? 2 : 1;
+                document.getElementById(`slide${inactiveId}`).classList.remove('leaving');
+            }, 1500);
+
             startProgress();
         }
         init();
