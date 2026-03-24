@@ -10,9 +10,9 @@ const SOURCES_OITA = [
 ];
 
 const SOURCES_GLOBAL = [
-  { genre: '科学・文化  / NHK ', url: 'https://www3.nhk.or.jp/rss/news/cat3.xml', icon: 'fa-solid fa-flask' },
-  { genre: '政治  / NHK ', url: 'https://www3.nhk.or.jp/rss/news/cat4.xml', icon: 'fa-solid fa-landmark' },
-  { genre: '経済  / NHK ', url: 'https://www3.nhk.or.jp/rss/news/cat5.xml', icon: 'fa-solid fa-chart-line' }
+  { genre: '科学・文化 / NHK', url: 'https://www3.nhk.or.jp/rss/news/cat3.xml', icon: 'fa-solid fa-flask' },
+  { genre: '政治 / NHK', url: 'https://www3.nhk.or.jp/rss/news/cat4.xml', icon: 'fa-solid fa-landmark' },
+  { genre: '経済 / NHK', url: 'https://www3.nhk.or.jp/rss/news/cat5.xml', icon: 'fa-solid fa-chart-line' }
 ];
 
 const NG_WORDS = /殺人|死体|遺体|刺殺|強盗|逮捕|容疑|死刑|死亡|遺棄|事故|火災|転落|重傷|重体|ひき逃げ/;
@@ -27,7 +27,7 @@ async function fetchFeed(source) {
     
     return items.map(item => {
       let title = typeof item.title === 'string' ? item.title : (item.title?._ || "");
-      // 末尾のカッコ（出典名）をきれいに除去
+      // 末尾のカッコ（出典名）を除去
       title = title.replace(/\s*[\(（][^）\)]+[\)）]\s*$/, '').trim();
       let desc = typeof item.description === 'string' ? item.description : (item.description?._ || "");
       
@@ -60,14 +60,13 @@ export default async function handler(req, res) {
       time: item.pubDate ? new Date(item.pubDate).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--'
     });
 
-    // 各プールをシャッフル
     const oitaPool = shuffle(oitaRes.flat().filter(filter).map(format));
     const globalPool = shuffle(globalRes.flat().filter(filter).map(format));
 
     let finalNews = [];
     let oIdx = 0, gIdx = 0;
 
-    // 大分2件：全国1件のペースで最大60件まで構築
+    // 大分2:全国1の比率で最大60件
     while (finalNews.length < 60 && (oIdx < oitaPool.length || gIdx < globalPool.length)) {
       if (oitaPool[oIdx]) finalNews.push(oitaPool[oIdx++]);
       if (oitaPool[oIdx]) finalNews.push(oitaPool[oIdx++]);
