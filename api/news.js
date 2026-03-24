@@ -1,82 +1,168 @@
-import fetch from 'node-fetch';
-import xml2js from 'xml2js';
+const db = firebase.firestore();
 
-const SOURCES_OITA = [
-  { genre: '大分合同新聞', url: 'https://news.yahoo.co.jp/rss/media/mjikenbo/all.xml', icon: 'fa-solid fa-newspaper' },
-  { genre: 'OBS大分放送', url: 'https://news.yahoo.co.jp/rss/media/obsnews/all.xml', icon: 'fa-solid fa-tv' },
-  { genre: 'OAB大分朝日放送', url: 'https://news.yahoo.co.jp/rss/media/oabv/all.xml', icon: 'fa-solid fa-tower-broadcast' },
-  { genre: 'TOSテレビ大分', url: 'https://news.yahoo.co.jp/rss/media/tos/all.xml', icon: 'fa-solid fa-display' },
-  { genre: 'NHK大分', url: 'https://www.nhk.or.jp/rss/news/oita.xml', icon: 'fa-solid fa-map-pin' }
-];
-
-const SOURCES_GLOBAL = [
-  { genre: '科学・文化 / NHK', url: 'https://www3.nhk.or.jp/rss/news/cat3.xml', icon: 'fa-solid fa-flask' },
-  { genre: '政治 / NHK', url: 'https://www3.nhk.or.jp/rss/news/cat4.xml', icon: 'fa-solid fa-landmark' },
-  { genre: '経済 / NHK', url: 'https://www3.nhk.or.jp/rss/news/cat5.xml', icon: 'fa-solid fa-chart-line' }
-];
-
-const NG_WORDS = /殺人|死体|遺体|刺殺|強盗|逮捕|容疑|死刑|死亡|遺棄|事故|火災|転落|重傷|重体|ひき逃げ/;
-
-async function fetchFeed(source) {
-  try {
-    const response = await fetch(source.url);
-    const xml = await response.text();
-    const parsed = await xml2js.parseStringPromise(xml, { explicitArray: false });
-    let items = parsed.rss?.channel?.item || [];
-    if (!Array.isArray(items)) items = [items];
+new Vue({
+  el: '#app',
+  data: {
+    todos: [],
+    newTodo: '',
+    newDate: '',
+    user: null,
+    isMenuOpen: false,
+    showTerms: false,
     
-    return items.map(item => {
-      let title = typeof item.title === 'string' ? item.title : (item.title?._ || "");
-      // 末尾のカッコ（出典名）を除去
-      title = title.replace(/\s*[\(（][^）\)]+[\)）]\s*$/, '').trim();
-      let desc = typeof item.description === 'string' ? item.description : (item.description?._ || "");
-      
-      return {
-        title: title,
-        description: desc,
-        pubDate: item.pubDate,
-        sourceName: source.genre,
-        icon: source.icon
+    // 設定関連
+    notificationEnabled: localStorage.getItem('notify') === 'true',
+    effectEnabled: localStorage.getItem('effect') !== 'false',
+    
+    // 編集・モード管理用データ
+    isEditMode: false,
+    editingId: null,
+    editComment: '',
+    editDate: ''
+  },
+  computed: {
+    activeTodos() {
+      const getDueDate = (item) => {
+        if (!item.dueDate || item.dueDate === "") return 9999999999999;
+        const d = new Date(item.dueDate).getTime();
+        return isNaN(d) ? 9999999999999 : d;
       };
-    });
-  } catch (e) { return []; }
-}
 
-const shuffle = (array) => array.sort(() => Math.random() - 0.5);
-
-export default async function handler(req, res) {
-  try {
-    const [oitaRes, globalRes] = await Promise.all([
-      Promise.all(SOURCES_OITA.map(fetchFeed)),
-      Promise.all(SOURCES_GLOBAL.map(fetchFeed))
-    ]);
-
-    const filter = (item) => item.title && !NG_WORDS.test(item.title);
-    const format = (item) => ({
-      title: item.title,
-      source: item.sourceName,
-      icon: item.icon,
-      excerpt: item.description ? item.description.replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim().substring(0, 95) + '...' : '詳細はニュースをご確認ください。',
-      time: item.pubDate ? new Date(item.pubDate).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '--:--'
-    });
-
-    const oitaPool = shuffle(oitaRes.flat().filter(filter).map(format));
-    const globalPool = shuffle(globalRes.flat().filter(filter).map(format));
-
-    let finalNews = [];
-    let oIdx = 0, gIdx = 0;
-
-    // 大分2:全国1の比率で最大60件
-    while (finalNews.length < 60 && (oIdx < oitaPool.length || gIdx < globalPool.length)) {
-      if (oitaPool[oIdx]) finalNews.push(oitaPool[oIdx++]);
-      if (oitaPool[oIdx]) finalNews.push(oitaPool[oIdx++]);
-      if (globalPool[gIdx]) finalNews.push(globalPool[gIdx++]);
+      return [...this.todos]
+        .filter(item => item.state !== '完了')
+        .sort((a, b) => {
+          if (a.isStarred !== b.isStarred) {
+            return a.isStarred ? -1 : 1;
+          }
+          return getDueDate(a) - getDueDate(b);
+        });
+    },
+    archivedTodos() {
+      return [...this.todos]
+        .filter(item => item.state === '完了')
+        .sort((a, b) => {
+          const dateA = (a.dueDate && a.dueDate !== "") ? new Date(a.dueDate).getTime() : 0;
+          const dateB = (b.dueDate && b.dueDate !== "") ? new Date(b.dueDate).getTime() : 0;
+          return dateB - dateA;
+        });
     }
+  },
+  
+  methods: {
+    login() {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      firebase.auth().signInWithPopup(provider);
+    },
+    logout() {
+      firebase.auth().signOut();
+    },
+    isUrgent(dueDate) {
+      if (!dueDate || dueDate === "") return false;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const targetDate = new Date(dueDate);
+      targetDate.setHours(0, 0, 0, 0);
+      return targetDate.getTime() <= today.getTime();
+    },
+    toggleNotification() {
+      localStorage.setItem('notify', this.notificationEnabled);
+      if (this.notificationEnabled && Notification.permission !== 'granted') {
+        Notification.requestPermission();
+      }
+    },
+    toggleEffect() {
+      localStorage.setItem('effect', this.effectEnabled);
+    },
+    toggleEditMode() {
+      if (!this.isEditMode) {
+        this.cancelEdit();
+      }
+    },
+    checkDeadlines() {
+      if (!this.notificationEnabled) return;
+      const todayStr = new Date().toISOString().split('T')[0];
+      const urgentTasks = this.todos.filter(t => t.state !== '完了' && t.dueDate === todayStr);
 
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json(finalNews);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed' });
+      if (urgentTasks.length > 0 && Notification.permission === 'granted') {
+        const taskList = urgentTasks.map(t => `・${t.comment}`).join('\n');
+        new Notification("今日のToDo", {
+          body: `期限のタスクが ${urgentTasks.length} 件あります！\n\n${taskList}`
+        });
+      }
+    },
+    doAdd() {
+      if (!this.user) {
+        alert('タスクを追加するには、Googleアカウントでログインしてください。');
+        return;
+      }
+      if (!this.newTodo) {
+        alert('タスクの内容を入力してください。');
+        return;
+      }
+      
+      db.collection('todos').add({
+        comment: this.newTodo,
+        dueDate: this.newDate || null,
+        state: '作業中',
+        isStarred: false,
+        uid: this.user.uid,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      this.newTodo = '';
+      this.newDate = '';
+    },
+    doRemove(item) {
+      if (confirm('本当に削除しますか？')) {
+        db.collection('todos').doc(item.id).delete();
+      }
+    },
+    doChangeState(item) {
+      const newState = item.state === '作業中' ? '完了' : '作業中';
+      if (newState === '完了' && this.effectEnabled) this.runConfetti();
+      db.collection('todos').doc(item.id).update({ state: newState });
+    },
+    doToggleStar(item) {
+      db.collection('todos').doc(item.id).update({ isStarred: !item.isStarred });
+    },
+    startEdit(item) {
+      this.editingId = item.id;
+      this.editComment = item.comment;
+      this.editDate = item.dueDate;
+    },
+    cancelEdit() {
+      this.editingId = null;
+      this.editComment = '';
+      this.editDate = '';
+    },
+    doUpdate(item) {
+      if (!this.editComment) return;
+      db.collection('todos').doc(item.id).update({
+        comment: this.editComment,
+        dueDate: this.editDate || null
+      }).then(() => this.cancelEdit());
+    },
+    runConfetti() {
+      if (typeof confetti === 'function') {
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+      }
+    }
+  },
+  created() {
+    firebase.auth().onAuthStateChanged(user => {
+      this.user = user;
+      if (user) {
+        db.collection('todos').where('uid', '==', user.uid)
+          .onSnapshot(snapshot => {
+            this.todos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            this.checkDeadlines();
+          });
+      } else {
+        this.todos = [];
+      }
+    });
+    if (!localStorage.getItem('hasSeenTerms')) {
+      this.showTerms = true;
+      localStorage.setItem('hasSeenTerms', 'true');
+    }
   }
-}
+});
