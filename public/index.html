@@ -16,13 +16,13 @@
             position: absolute; width: 100%; height: 100%;
             display: flex; align-items: center; justify-content: center;
             opacity: 0;
-            transform: translate3d(0, 15px, 0);
+            transform: translate3d(0, 20px, 0);
             transition: opacity 1.2s ease-in-out, transform 1.2s ease-out;
             visibility: hidden;
             will-change: opacity, transform;
         }
         .slide.active { opacity: 1; transform: translate3d(0, 0, 0); visibility: visible; z-index: 20; }
-        .slide.leaving { opacity: 0; transform: translate3d(0, -15px, 0); z-index: 10; }
+        .slide.leaving { opacity: 0; transform: translate3d(0, -20px, 0); z-index: 10; }
 
         .content-box {
             width: 80%; max-width: 1050px; padding: 45px 65px;
@@ -36,22 +36,15 @@
         .source-tag { display: inline-flex; align-items: center; color: #fff; padding: 8px 22px; border-radius: 50px; font-size: 1.4rem; font-weight: bold; }
         .source-tag i { margin-right: 10px; }
 
-        .title { font-size: 3.6rem; font-weight: 800; margin-bottom: 25px; line-height: 1.4; color: #0f172a; padding-bottom: 20px; border-bottom: 6px solid #cbd5e1; transition: border-color 0.5s ease; }
+        .title { font-size: 3.6rem; font-weight: 800; margin-bottom: 25px; line-height: 1.4; color: #0f172a; padding-bottom: 20px; border-bottom: 6px solid #cbd5e1; }
         .excerpt { font-size: 1.9rem; line-height: 1.7; color: #334155; }
         .meta-footer { display: flex; justify-content: flex-end; margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(0,0,0,0.05); }
         .meta-time { font-size: 1.4rem; color: #64748b; font-weight: bold; }
 
         #ticker-container { position: absolute; bottom: 0; left: 0; width: 100%; z-index: 50; }
-        #progress-bar { width: 0%; height: 6px; background: #f59e0b; transition: width 0.1s linear, background-color 0.5s ease; }
+        #progress-bar { width: 0%; height: 6px; background: #f59e0b; transition: width 0.1s linear; }
         
-        /* テロップエリア：親要素に3Dレンダリング空間を固定 */
-        #ticker { 
-            height: 75px; 
-            background: #0f172a; 
-            overflow: hidden; 
-            position: relative;
-            transform: translateZ(0); 
-        }
+        #ticker { height: 75px; background: #0f172a; overflow: hidden; position: relative; transform: translateZ(0); contain: strict; }
 
         .ticker-text { 
             position: absolute;
@@ -61,9 +54,8 @@
             font-weight: bold; 
             line-height: 75px;
             display: inline-block;
-            padding-left: 100vw; /* 画面右端から開始 */
-            
-            /* 速度 38s / 高精度アニメーション設定 */
+            padding-left: 100vw;
+            /* 38秒設定 */
             animation: scroll 38s linear infinite; 
             will-change: transform;
             transform: translate3d(0, 0, 0);
@@ -90,8 +82,9 @@
     </div>
 
     <script>
+        // Excel (SharePoint) のダウンロード用URL
+        const EXCEL_CSV_URL = 'https://oitast-my.sharepoint.com/personal/ough240200_st_oita-ed_jp/_layouts/15/download.aspx?sourcedoc={28474ee3-9de4-4002-9b93-45cda3d8b37f}'; 
         const API_URL = '/api/news';
-        const INFO_URL = '/info.txt';
         const SLIDE_DURATION = 10000; 
         let newsItems = [];
         let currentIndex = 0;
@@ -107,6 +100,7 @@
                 document.getElementById('slide1').classList.add('active');
                 startProgress();
             }
+            // 5分（300,000ミリ秒）ごとに最新のExcelデータをチェック
             setInterval(async () => {
                 await updateNews();
                 await updateSchoolInfo();
@@ -123,38 +117,47 @@
 
         async function updateSchoolInfo() {
             try {
-                const res = await fetch(INFO_URL + '?t=' + Date.now());
-                if (!res.ok) return;
+                const res = await fetch(EXCEL_CSV_URL + '&t=' + Date.now());
                 const rawText = await res.text();
                 const lines = rawText.split(/\r?\n/);
+                
                 const now = new Date();
                 const todayStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
-                const month = now.getMonth() + 1;
-                const date = now.getDate();
-                const dayOfWeek = ["日", "月", "火", "水", "木", "金", "土"][now.getDay()];
-                const dateLabel = `【${month}月${date}日（${dayOfWeek}）】`;
+                const dateLabel = `【${now.getMonth() + 1}月${now.getDate()}日（${["日","月","火","水","木","金","土"][now.getDay()]}）】`;
 
-                let fixedText = "", todayText = "";
+                let fixedItems = [];
+                let todayItems = [];
+
                 lines.forEach(line => {
-                    const t = line.trim();
-                    if (!t) return;
-                    if (t.startsWith("[固定]")) {
-                        fixedText = t.replace("[固定]", "【お知らせ】");
-                    } else {
-                        const m = t.match(/^\[(\d{4}\/\d{2}\/\d{2})\]/);
-                        if (m && m[1] === todayStr) {
-                            todayText = t.replace(m[0], dateLabel);
-                        }
+                    if (!line.trim()) return;
+                    const columns = line.split(/[,]/); // CSVとして分割
+                    if (columns.length < 2) return;
+                    
+                    const datePart = columns[0].replace(/"/g, '').trim();
+                    const contentPart = columns[1].replace(/"/g, '').trim();
+
+                    if (datePart === "[固定]") {
+                        fixedItems.push(contentPart);
+                    } else if (datePart === todayStr || datePart.replace(/-/g, '/') === todayStr) {
+                        todayItems.push(contentPart);
                     }
                 });
 
                 const contentEl = document.getElementById('ticker-content');
-                if (todayText) {
-                    contentEl.textContent = `${todayText}　／　${fixedText}`;
-                } else {
-                    contentEl.textContent = fixedText || "【連絡】現在、特別な連絡事項はありません。";
+                let finalText = "";
+                if (todayItems.length > 0) finalText += `${dateLabel}${todayItems.join('　')}　`;
+                if (fixedItems.length > 0) {
+                    if (finalText) finalText += " ／ ";
+                    finalText += `【お知らせ】${fixedItems.join('　')}`;
                 }
-            } catch (e) { console.error("校内ニュース読み込み失敗", e); }
+
+                const newMsg = finalText || "【連絡】現在、特別な連絡事項はありません。";
+                
+                // 文字列が変わった時だけ更新（カクつき防止）
+                if (contentEl.textContent !== newMsg) {
+                    contentEl.textContent = newMsg;
+                }
+            } catch (e) { console.error("Excel読み込み失敗", e); }
         }
 
         function updateSlideContent(id, item) {
