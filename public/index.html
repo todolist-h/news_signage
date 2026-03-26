@@ -7,13 +7,11 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #e0f2fe; color: #1e293b; font-family: "Helvetica Neue", Arial, "Hiragino Sans", "Meiryo", sans-serif; cursor: none; }
         
-        /* 背景グラデーションアニメーション */
         #bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #f0f9ff, #bae6fd, #7dd3fc); background-size: 400% 400%; animation: gradientBG 15s ease infinite; z-index: 1; }
         @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 
         #app { position: relative; width: 100vw; height: 100vh; z-index: 10; }
         
-        /* スライド切り替えアニメーション（10秒サイクル） */
         .slide {
             position: absolute; width: 100%; height: 100%;
             display: flex; align-items: center; justify-content: center;
@@ -47,8 +45,7 @@
         #ticker-container { position: absolute; bottom: 0; left: 0; width: 100%; z-index: 50; }
         #progress-bar { width: 0%; height: 6px; background: #f59e0b; transition: width 0.1s linear, background-color 0.5s ease; }
         
-        /* テロップ本体：滑らかに動くよう最適化 */
-        #ticker { height: 75px; background: #0f172a; overflow: hidden; display: flex; align-items: center; }
+        #ticker { height: 75px; background: #0f172a; overflow: hidden; display: flex; align-items: center; perspective: 1000px; }
         .ticker-text { 
             color: #f8fafc; 
             white-space: nowrap; 
@@ -56,8 +53,14 @@
             font-weight: bold; 
             padding-left: 100%; 
             display: inline-block;
-            animation: scroll 35s linear infinite; 
+            
+            /* 【重要】ガタつき防止設定 */
+            animation: scroll 30s linear infinite; 
             will-change: transform;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            transform: translate3d(0, 0, 0);
+            -webkit-font-smoothing: antialiased;
         }
         
         @keyframes scroll { 
@@ -68,12 +71,10 @@
 </head>
 <body>
     <div id="bg-canvas"></div>
-    
     <div id="app">
         <div id="slide1" class="slide"></div>
         <div id="slide2" class="slide"></div>
     </div>
-
     <div id="ticker-container">
         <div id="progress-bar"></div>
         <div id="ticker">
@@ -84,7 +85,7 @@
     <script>
         const API_URL = '/api/news';
         const INFO_URL = '/info.txt';
-        const SLIDE_DURATION = 10000; // 10秒サイクル
+        const SLIDE_DURATION = 10000; 
         let newsItems = [];
         let currentIndex = 0;
         let activeSlideId = 1;
@@ -92,17 +93,13 @@
         let startTime;
 
         async function init() {
-            // ニュースと校内情報の初期読み込み
             await updateNews();
             await updateSchoolInfo();
-            
             if (newsItems.length > 0) {
                 updateSlideContent('slide1', newsItems[0]);
                 document.getElementById('slide1').classList.add('active');
                 startProgress();
             }
-
-            // 5分ごとにリフレッシュ
             setInterval(async () => {
                 await updateNews();
                 await updateSchoolInfo();
@@ -123,10 +120,8 @@
                 if (!res.ok) return;
                 const rawText = await res.text();
                 const lines = rawText.split(/\r?\n/);
-                
                 const now = new Date();
                 const todayStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
-                
                 const month = now.getMonth() + 1;
                 const date = now.getDate();
                 const dayOfWeek = ["日", "月", "火", "水", "木", "金", "土"][now.getDay()];
@@ -159,9 +154,7 @@
             const el = document.getElementById(id);
             const isLocal = item.source.includes('大分') || item.source.includes('OBS') || item.source.includes('OAB') || item.source.includes('TOS');
             const accentColor = isLocal ? '#f59e0b' : '#3b82f6';
-            
             document.getElementById('progress-bar').style.backgroundColor = accentColor;
-            
             el.innerHTML = `
                 <div class="content-box">
                     <div class="header-meta">
@@ -195,20 +188,16 @@
             const nextSlideId = activeSlideId === 1 ? 2 : 1;
             const currentEl = document.getElementById(`slide${activeSlideId}`);
             const nextEl = document.getElementById(`slide${nextSlideId}`);
-
             updateSlideContent(`slide${nextSlideId}`, newsItems[currentIndex]);
-
             requestAnimationFrame(() => {
                 currentEl.classList.replace('active', 'leaving');
                 nextEl.classList.add('active');
             });
-
             activeSlideId = nextSlideId;
             setTimeout(() => {
                 const inactiveId = activeSlideId === 1 ? 2 : 1;
                 document.getElementById(`slide${inactiveId}`).classList.remove('leaving');
             }, 1500);
-
             startProgress();
         }
         init();
