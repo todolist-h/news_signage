@@ -7,11 +7,13 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #e0f2fe; color: #1e293b; font-family: "Helvetica Neue", Arial, "Hiragino Sans", "Meiryo", sans-serif; cursor: none; }
         
+        /* 背景グラデーションアニメーション */
         #bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #f0f9ff, #bae6fd, #7dd3fc); background-size: 400% 400%; animation: gradientBG 15s ease infinite; z-index: 1; }
         @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 
         #app { position: relative; width: 100vw; height: 100vh; z-index: 10; }
         
+        /* スライド切り替えアニメーション（10秒サイクル） */
         .slide {
             position: absolute; width: 100%; height: 100%;
             display: flex; align-items: center; justify-content: center;
@@ -45,7 +47,7 @@
         #ticker-container { position: absolute; bottom: 0; left: 0; width: 100%; z-index: 50; }
         #progress-bar { width: 0%; height: 6px; background: #f59e0b; transition: width 0.1s linear, background-color 0.5s ease; }
         
-        /* テロップ本体：滑らかさの追求 */
+        /* テロップ本体：滑らかに動くよう最適化 */
         #ticker { height: 75px; background: #0f172a; overflow: hidden; display: flex; align-items: center; }
         .ticker-text { 
             color: #f8fafc; 
@@ -54,7 +56,6 @@
             font-weight: bold; 
             padding-left: 100%; 
             display: inline-block;
-            /* translate3dを使用してGPU加速させ、will-changeで最適化 */
             animation: scroll 50s linear infinite; 
             will-change: transform;
         }
@@ -63,13 +64,10 @@
             from { transform: translate3d(0, 0, 0); } 
             to { transform: translate3d(-100%, 0, 0); } 
         }
-        
-        #clock { position: absolute; top: 35px; right: 50px; font-size: 2.4rem; font-weight: bold; color: #334155; z-index: 100; font-variant-numeric: tabular-nums; }
     </style>
 </head>
 <body>
     <div id="bg-canvas"></div>
-    <div id="clock">00:00:00</div>
     
     <div id="app">
         <div id="slide1" class="slide"></div>
@@ -86,7 +84,7 @@
     <script>
         const API_URL = '/api/news';
         const INFO_URL = '/info.txt';
-        const SLIDE_DURATION = 10000; // 10秒に延長
+        const SLIDE_DURATION = 10000; // 10秒サイクル
         let newsItems = [];
         let currentIndex = 0;
         let activeSlideId = 1;
@@ -94,21 +92,22 @@
         let startTime;
 
         async function init() {
-            updateClock(); setInterval(updateClock, 1000);
+            // ニュースと校内情報の初期読み込み
             await updateNews();
             await updateSchoolInfo();
+            
             if (newsItems.length > 0) {
                 updateSlideContent('slide1', newsItems[0]);
                 document.getElementById('slide1').classList.add('active');
                 startProgress();
             }
+
+            // 5分ごとにリフレッシュ
             setInterval(async () => {
                 await updateNews();
                 await updateSchoolInfo();
             }, 300000); 
         }
-
-        function updateClock() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('ja-JP'); }
 
         async function updateNews() {
             try {
@@ -160,6 +159,7 @@
             const el = document.getElementById(id);
             const isLocal = item.source.includes('大分') || item.source.includes('OBS') || item.source.includes('OAB') || item.source.includes('TOS');
             const accentColor = isLocal ? '#f59e0b' : '#3b82f6';
+            
             document.getElementById('progress-bar').style.backgroundColor = accentColor;
             
             el.innerHTML = `
