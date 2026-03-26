@@ -54,7 +54,6 @@
             line-height: 75px;
             display: inline-block;
             padding-left: 100vw;
-            /* 38秒に設定 */
             animation: scroll 38s linear infinite; 
             will-change: transform;
             transform: translate3d(0, 0, 0);
@@ -100,7 +99,7 @@
                 document.getElementById('slide1').classList.add('active');
                 startProgress();
             }
-            // 5分（300,000ms）ごとに更新を確認
+            // 5分ごとに更新を確認
             setInterval(async () => {
                 await updateNews();
                 await updateSchoolInfo();
@@ -117,21 +116,30 @@
 
         async function updateSchoolInfo() {
             try {
-                // キャッシュを回避して最新データを取得
                 const res = await fetch(GOOGLE_SHEET_CSV_URL + '&t=' + Date.now());
                 const rawText = await res.text();
                 const lines = rawText.split(/\r?\n/);
                 
                 const now = new Date();
-                const todayStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
-                const dateLabel = `【${now.getMonth() + 1}月${now.getDate()}日（${["日","月","火","水","木","金","土"][now.getDay()]}）】`;
+                const y = now.getFullYear();
+                const m = now.getMonth() + 1;
+                const d = now.getDate();
+
+                // 判定用日付パターン（Googleシート側の自動変換に対応）
+                const todayPatterns = [
+                    `${y}/${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}`, // 2026/03/26
+                    `${y}/${m}/${d}`,                                                 // 2026/3/26
+                    `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`, // 2026-03-26
+                    `${y}-${m}-${d}`                                                  // 2026-3-26
+                ];
+
+                const dateLabel = `【${m}月${d}日（${["日","月","火","水","木","金","土"][now.getDay()]}）】`;
 
                 let fixedItems = [];
                 let todayItems = [];
 
                 lines.forEach(line => {
                     if (!line.trim()) return;
-                    // カンマ区切りの解析（引用符を考慮）
                     const columns = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                     if (columns.length < 2) return;
                     
@@ -140,14 +148,16 @@
 
                     if (datePart === "[固定]") {
                         fixedItems.push(contentPart);
-                    } else if (datePart === todayStr || datePart.replace(/-/g, '/') === todayStr) {
+                    } else if (todayPatterns.includes(datePart)) {
                         todayItems.push(contentPart);
                     }
                 });
 
                 const contentEl = document.getElementById('ticker-content');
                 let finalText = "";
-                if (todayItems.length > 0) finalText += `${dateLabel}${todayItems.join('　')}　`;
+                if (todayItems.length > 0) {
+                    finalText += `${dateLabel}${todayItems.join('　')}　`;
+                }
                 if (fixedItems.length > 0) {
                     if (finalText) finalText += " ／ ";
                     finalText += `【お知らせ】${fixedItems.join('　')}`;
@@ -155,7 +165,6 @@
 
                 const newMsg = finalText || "【連絡】現在、特別な連絡事項はありません。";
                 
-                // 内容が変わった場合のみテキストを書き換える
                 if (contentEl.textContent !== newMsg) {
                     contentEl.textContent = newMsg;
                 }
