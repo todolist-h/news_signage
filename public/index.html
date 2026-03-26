@@ -54,7 +54,7 @@
             line-height: 75px;
             display: inline-block;
             padding-left: 100vw;
-            /* 38秒設定 */
+            /* 38秒に設定 */
             animation: scroll 38s linear infinite; 
             will-change: transform;
             transform: translate3d(0, 0, 0);
@@ -81,9 +81,8 @@
     </div>
 
     <script>
-        // 中継サーバー(allorigins)を通してCORSを回避する設定
-        const BASE_EXCEL_URL = 'https://oitast-my.sharepoint.com/personal/ough240200_st_oita-ed_jp/_layouts/15/download.aspx?sourcedoc={28474ee3-9de4-4002-9b93-45cda3d8b37f}';
-        const EXCEL_CSV_URL = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(BASE_EXCEL_URL);
+        // 提供いただいたGoogleシートのURL
+        const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQDqmuyy7Lrz9KVsVvLJ04Xvb7o-IvgwfjaJB2R-_JQqoAu1C1FVfQCL9mGpAGnPGtOe62VZxnzHbSx/pub?gid=0&single=true&output=csv'; 
         
         const API_URL = '/api/news';
         const SLIDE_DURATION = 10000; 
@@ -101,10 +100,11 @@
                 document.getElementById('slide1').classList.add('active');
                 startProgress();
             }
+            // 5分（300,000ms）ごとに更新を確認
             setInterval(async () => {
                 await updateNews();
                 await updateSchoolInfo();
-            }, 300000); // 5分おき
+            }, 300000); 
         }
 
         async function updateNews() {
@@ -117,12 +117,11 @@
 
         async function updateSchoolInfo() {
             try {
-                // 中継サーバー経由で取得
-                const res = await fetch(EXCEL_CSV_URL + '&t=' + Date.now());
-                if (!res.ok) throw new Error('Excel取得失敗');
+                // キャッシュを回避して最新データを取得
+                const res = await fetch(GOOGLE_SHEET_CSV_URL + '&t=' + Date.now());
                 const rawText = await res.text();
-                
                 const lines = rawText.split(/\r?\n/);
+                
                 const now = new Date();
                 const todayStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
                 const dateLabel = `【${now.getMonth() + 1}月${now.getDate()}日（${["日","月","火","水","木","金","土"][now.getDay()]}）】`;
@@ -132,8 +131,8 @@
 
                 lines.forEach(line => {
                     if (!line.trim()) return;
-                    // カンマ区切り（引用符考慮）
-                    const columns = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); 
+                    // カンマ区切りの解析（引用符を考慮）
+                    const columns = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                     if (columns.length < 2) return;
                     
                     const datePart = columns[0].replace(/"/g, '').trim();
@@ -155,12 +154,12 @@
                 }
 
                 const newMsg = finalText || "【連絡】現在、特別な連絡事項はありません。";
+                
+                // 内容が変わった場合のみテキストを書き換える
                 if (contentEl.textContent !== newMsg) {
                     contentEl.textContent = newMsg;
                 }
-            } catch (e) { 
-                console.error("Excel読み込み失敗:", e);
-            }
+            } catch (e) { console.error("Googleシート読み込み失敗", e); }
         }
 
         function updateSlideContent(id, item) {
