@@ -80,9 +80,7 @@
     </div>
 
     <script>
-        // 提供いただいたGoogleシートのURL
         const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQDqmuyy7Lrz9KVsVvLJ04Xvb7o-IvgwfjaJB2R-_JQqoAu1C1FVfQCL9mGpAGnPGtOe62VZxnzHbSx/pub?gid=0&single=true&output=csv'; 
-        
         const API_URL = '/api/news';
         const SLIDE_DURATION = 10000; 
         let newsItems = [];
@@ -92,17 +90,22 @@
         let startTime;
 
         async function init() {
-            await updateNews();
-            await updateSchoolInfo();
+            // 全国ニュースと校内ニュースを「同時に」開始。両方終わるまで待機
+            await Promise.all([
+                updateNews(),
+                updateSchoolInfo()
+            ]);
+
+            // ニュースが取得できていれば表示開始
             if (newsItems.length > 0) {
                 updateSlideContent('slide1', newsItems[0]);
                 document.getElementById('slide1').classList.add('active');
                 startProgress();
             }
-            // 5分ごとに更新を確認
+
+            // 5分ごとの定期更新も同時並行
             setInterval(async () => {
-                await updateNews();
-                await updateSchoolInfo();
+                await Promise.all([updateNews(), updateSchoolInfo()]);
             }, 300000); 
         }
 
@@ -125,12 +128,11 @@
                 const m = now.getMonth() + 1;
                 const d = now.getDate();
 
-                // 判定用日付パターン（Googleシート側の自動変換に対応）
                 const todayPatterns = [
-                    `${y}/${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}`, // 2026/03/26
-                    `${y}/${m}/${d}`,                                                 // 2026/3/26
-                    `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`, // 2026-03-26
-                    `${y}-${m}-${d}`                                                  // 2026-3-26
+                    `${y}/${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}`,
+                    `${y}/${m}/${d}`,
+                    `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
+                    `${y}-${m}-${d}`
                 ];
 
                 const dateLabel = `【${m}月${d}日（${["日","月","火","水","木","金","土"][now.getDay()]}）】`;
